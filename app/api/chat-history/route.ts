@@ -1,46 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import fs from 'fs';
-import path from 'path';
 import { ChatHistory, ChatSession } from '../../types/chat';
 
-const CHAT_HISTORY_DIR = path.join(process.cwd(), 'data', 'chat-history');
-
-// データディレクトリを確保
-function ensureChatHistoryDir(): void {
-  if (!fs.existsSync(CHAT_HISTORY_DIR)) {
-    fs.mkdirSync(CHAT_HISTORY_DIR, { recursive: true });
-  }
-}
-
-// ユーザーのチャット履歴ファイルパス
-function getChatHistoryPath(userEmail: string): string {
-  ensureChatHistoryDir();
-  const fileName = `${Buffer.from(userEmail).toString('base64')}.json`;
-  return path.join(CHAT_HISTORY_DIR, fileName);
-}
+// Vercel環境では在临时内存中存储（重启后会丢失）
+// 实际应用中应该使用数据库或外部存储服务
+const chatHistoryStore = new Map<string, ChatHistory>();
 
 // ユーザーのチャット履歴を取得
 function getUserChatHistory(userEmail: string): ChatHistory {
   try {
-    const filePath = getChatHistoryPath(userEmail);
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath, 'utf8');
-      return JSON.parse(data);
-    }
+    const history = chatHistoryStore.get(userEmail);
+    return history || { sessions: [], currentSessionId: null };
   } catch (error) {
     console.error('チャット履歴の読み込みエラー:', error);
+    return { sessions: [], currentSessionId: null };
   }
-  
-  return { sessions: [], currentSessionId: null };
 }
 
 // ユーザーのチャット履歴を保存
 function saveUserChatHistory(userEmail: string, history: ChatHistory): void {
   try {
-    const filePath = getChatHistoryPath(userEmail);
-    fs.writeFileSync(filePath, JSON.stringify(history, null, 2), 'utf8');
+    chatHistoryStore.set(userEmail, history);
+    console.log(`チャット履歴保存: ${userEmail}, セッション数: ${history.sessions.length}`);
   } catch (error) {
     console.error('チャット履歴の保存エラー:', error);
     throw error;

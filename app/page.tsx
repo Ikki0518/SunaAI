@@ -144,28 +144,45 @@ export default function ChatPage() {
         }),
       });
 
+      console.log("[フロントエンド] HTTP status:", res.status);
+      console.log("[フロントエンド] res.ok:", res.ok);
+
       const data = await res.json();
+      console.log("[フロントエンド] APIレスポンス:", data);
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${data.error || data.answer || 'サーバーエラー'}`);
+      }
+      
+      // エラーレスポンスの場合
+      if (data.error || !data.answer) {
+        throw new Error(data.error || "APIからの応答が不正です");
+      }
       
       // conversation_idを更新
-      if (data.conversationId && !workingSession.conversationId) {
+      if (data.conversationId) {
         workingSession.conversationId = data.conversationId;
+        console.log("[フロントエンド] conversationId更新:", data.conversationId);
       }
 
       // ボットメッセージを追加
       const botMessage: Message = {
         role: "bot",
-        content: data.answer || "(no response)",
+        content: data.answer,
         timestamp: Date.now(),
       };
+      
+      console.log("[フロントエンド] ボットメッセージ:", botMessage);
 
       workingSession = chatHistoryUtils.addMessageToSession(workingSession, botMessage);
       workingHistory = await chatHistoryUtils.updateSession(workingHistory, workingSession.id, workingSession);
       await saveHistory(workingHistory);
 
     } catch (e) {
+      console.error("[フロントエンド] エラー:", e);
       const errorMessage: Message = {
         role: "bot",
-        content: "(エラーが発生しました)",
+        content: `(エラーが発生しました: ${e instanceof Error ? e.message : '不明なエラー'})`,
         timestamp: Date.now(),
       };
 

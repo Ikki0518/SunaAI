@@ -1,6 +1,5 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import GoogleProvider from "next-auth/providers/google"
 import bcrypt from "bcryptjs"
 import { userServiceServer } from "./userServiceServer"
 
@@ -100,27 +99,38 @@ const providers: any[] = [
 ];
 
 // Google OAuthプロバイダーを条件付きで追加
-const googleClientId = getEnvVar('GOOGLE_CLIENT_ID');
-const googleClientSecret = getEnvVar('GOOGLE_CLIENT_SECRET');
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-if (googleClientId && googleClientSecret) {
-  providers.push(
-    GoogleProvider({
-      clientId: googleClientId,
-      clientSecret: googleClientSecret,
-      async profile(profile) {
-        // Googleアカウントでのサインイン記録
-        await trackUser(profile.sub, profile.name, profile.email, 'google', 'signin', profile.picture);
-        
-        return {
-          id: profile.sub,
-          name: profile.name,
-          email: profile.email,
-          image: profile.picture,
-        }
-      },
-    })
-  );
+// 両方の環境変数が設定されている場合のみGoogleプロバイダーを追加
+if (googleClientId && googleClientSecret && googleClientId !== '' && googleClientSecret !== '') {
+  console.log('Google OAuth enabled');
+  
+  // 動的インポートでGoogleProviderを読み込み
+  try {
+    const GoogleProvider = require("next-auth/providers/google").default;
+    providers.push(
+      GoogleProvider({
+        clientId: googleClientId,
+        clientSecret: googleClientSecret,
+        async profile(profile: any) {
+          // Googleアカウントでのサインイン記録
+          await trackUser(profile.sub, profile.name, profile.email, 'google', 'signin', profile.picture);
+          
+          return {
+            id: profile.sub,
+            name: profile.name,
+            email: profile.email,
+            image: profile.picture,
+          }
+        },
+      })
+    );
+  } catch (error) {
+    console.error('Failed to load Google OAuth provider:', error);
+  }
+} else {
+  console.log('Google OAuth disabled - missing credentials');
 }
 
 export const authOptions = {

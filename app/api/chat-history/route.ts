@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { auth } from '@/app/lib/auth';
 import fs from 'fs';
 import path from 'path';
 import { ChatHistory, ChatSession } from '../../types/chat';
@@ -50,7 +49,7 @@ function saveUserChatHistory(userEmail: string, history: ChatHistory): void {
 // GET: チャット履歴を取得
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session || !session.user?.email) {
       return NextResponse.json(
@@ -73,7 +72,7 @@ export async function GET(request: NextRequest) {
 // POST: チャット履歴を保存
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session || !session.user?.email) {
       return NextResponse.json(
@@ -107,7 +106,7 @@ export async function POST(request: NextRequest) {
 // PUT: 特定のセッションを更新
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session || !session.user?.email) {
       return NextResponse.json(
@@ -143,7 +142,7 @@ export async function PUT(request: NextRequest) {
 // DELETE: セッションを削除
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session || !session.user?.email) {
       return NextResponse.json(

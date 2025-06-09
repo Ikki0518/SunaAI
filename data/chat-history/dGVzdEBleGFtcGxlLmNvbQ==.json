@@ -17,7 +17,8 @@
       ],
       "createdAt": 1749429282337,
       "updatedAt": 1749429285708,
-      "conversationId": "fb0de34c-3003-4eba-9d69-54a0f2261c4f"
+      "conversationId": "fb0de34c-3003-4eba-9d69-54a0f2261c4f",
+      "isPinned": true
     }
   ],
   "currentSessionId": "session_1749429282337"

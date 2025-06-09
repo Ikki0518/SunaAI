@@ -11,6 +11,7 @@ export interface ChatSession {
   conversationId?: string;
   createdAt: number;
   updatedAt: number;
+  isPinned?: boolean;
 }
 
 export interface ChatHistory {

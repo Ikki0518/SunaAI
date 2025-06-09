@@ -190,6 +190,81 @@ export const chatHistoryUtils = {
     return newHistory;
   },
 
+  // セッションをピン留め/解除
+  async pinSession(history: ChatHistory, sessionId: string, isPinned: boolean): Promise<ChatHistory> {
+    const newHistory = {
+      ...history,
+      sessions: history.sessions.map(s =>
+        s.id === sessionId ? { ...s, isPinned } : s
+      ),
+    };
+
+    try {
+      const session = newHistory.sessions.find(s => s.id === sessionId);
+      if (session) {
+        const response = await fetch('/api/chat-history', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ sessionId, updatedSession: session }),
+        });
+
+        if (!response.ok && response.status !== 401) {
+          console.error('Failed to pin session on server');
+        }
+      }
+    } catch (error) {
+      console.error('Error pinning session:', error);
+    }
+
+    await this.saveHistory(newHistory);
+    return newHistory;
+  },
+
+  // セッション名を変更
+  async renameSession(history: ChatHistory, sessionId: string, newTitle: string): Promise<ChatHistory> {
+    const newHistory = {
+      ...history,
+      sessions: history.sessions.map(s =>
+        s.id === sessionId ? { ...s, title: newTitle, updatedAt: Date.now() } : s
+      ),
+    };
+
+    try {
+      const session = newHistory.sessions.find(s => s.id === sessionId);
+      if (session) {
+        const response = await fetch('/api/chat-history', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ sessionId, updatedSession: session }),
+        });
+
+        if (!response.ok && response.status !== 401) {
+          console.error('Failed to rename session on server');
+        }
+      }
+    } catch (error) {
+      console.error('Error renaming session:', error);
+    }
+
+    await this.saveHistory(newHistory);
+    return newHistory;
+  },
+
+  // セッションをピン留め順でソート
+  sortSessionsByPin(sessions: ChatSession[]): ChatSession[] {
+    return [...sessions].sort((a, b) => {
+      // ピン留めされたセッションを上に
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      // 同じピン状態の場合は更新日時順
+      return b.updatedAt - a.updatedAt;
+    });
+  },
+
   // ローカルストレージからサーバーに移行（初回ログイン時などに使用）
   async migrateLocalToServer(): Promise<void> {
     try {

@@ -1,12 +1,24 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
+import GoogleProvider from "next-auth/providers/google"
 import bcrypt from "bcryptjs"
 import { userServiceServer } from "./userServiceServer"
+
+// 環境変数チェック関数
+function getEnvVar(key: string, fallback?: string): string {
+  const value = process.env[key];
+  if (!value && !fallback) {
+    console.warn(`Environment variable ${key} is not set`);
+    return '';
+  }
+  return value || fallback || '';
+}
 
 // ユーザー記録関数
 async function trackUser(userId: string, name: string, email: string, provider: string, action: 'signup' | 'signin', image?: string) {
   try {
-    await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/user-tracking`, {
+    const baseUrl = getEnvVar('NEXTAUTH_URL', 'http://localhost:3000');
+    await fetch(`${baseUrl}/api/user-tracking`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -24,68 +36,95 @@ async function trackUser(userId: string, name: string, email: string, provider: 
   }
 }
 
+// プロバイダー配列を動的に構築
+const providers: any[] = [
+  CredentialsProvider({
+    name: "credentials",
+    credentials: {
+      email: { label: "Email", type: "email" },
+      password: { label: "Password", type: "password" },
+      action: { label: "Action", type: "hidden" } // "signin" or "signup"
+    },
+    async authorize(credentials) {
+      if (!credentials?.email || !credentials?.password) {
+        return null
+      }
+
+      const { email, password, action } = credentials
+
+      if (action === "signup") {
+        // 新規登録
+        const existingUser = await userServiceServer.getUserByEmail(email)
+        if (existingUser) {
+          throw new Error("このメールアドレスは既に登録されています")
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 12)
+        const user = await userServiceServer.createUser({
+          email,
+          password: hashedPassword,
+          name: email.split("@")[0], // メールの@より前を名前とする
+        })
+
+        // 新規登録の記録
+        await trackUser(user.id, user.name, user.email, 'credentials', 'signup');
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        }
+      } else {
+        // ログイン
+        const user = await userServiceServer.getUserByEmail(email)
+        if (!user) {
+          throw new Error("メールアドレスまたはパスワードが間違っています")
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password)
+        if (!isPasswordValid) {
+          throw new Error("メールアドレスまたはパスワードが間違っています")
+        }
+
+        // ログインの記録
+        await trackUser(user.id, user.name, user.email, 'credentials', 'signin');
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        }
+      }
+    },
+  }),
+];
+
+// Google OAuthプロバイダーを条件付きで追加
+const googleClientId = getEnvVar('GOOGLE_CLIENT_ID');
+const googleClientSecret = getEnvVar('GOOGLE_CLIENT_SECRET');
+
+if (googleClientId && googleClientSecret) {
+  providers.push(
+    GoogleProvider({
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
+      async profile(profile) {
+        // Googleアカウントでのサインイン記録
+        await trackUser(profile.sub, profile.name, profile.email, 'google', 'signin', profile.picture);
+        
+        return {
+          id: profile.sub,
+          name: profile.name,
+          email: profile.email,
+          image: profile.picture,
+        }
+      },
+    })
+  );
+}
+
 export const authOptions = {
-  providers: [
-    CredentialsProvider({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-        action: { label: "Action", type: "hidden" } // "signin" or "signup"
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
-        }
-
-        const { email, password, action } = credentials
-
-        if (action === "signup") {
-          // 新規登録
-          const existingUser = await userServiceServer.getUserByEmail(email)
-          if (existingUser) {
-            throw new Error("このメールアドレスは既に登録されています")
-          }
-
-          const hashedPassword = await bcrypt.hash(password, 12)
-          const user = await userServiceServer.createUser({
-            email,
-            password: hashedPassword,
-            name: email.split("@")[0], // メールの@より前を名前とする
-          })
-
-          // 新規登録の記録
-          await trackUser(user.id, user.name, user.email, 'credentials', 'signup');
-
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-          }
-        } else {
-          // ログイン
-          const user = await userServiceServer.getUserByEmail(email)
-          if (!user) {
-            throw new Error("メールアドレスまたはパスワードが間違っています")
-          }
-
-          const isPasswordValid = await bcrypt.compare(password, user.password)
-          if (!isPasswordValid) {
-            throw new Error("メールアドレスまたはパスワードが間違っています")
-          }
-
-          // ログインの記録
-          await trackUser(user.id, user.name, user.email, 'credentials', 'signin');
-
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-          }
-        }
-      },
-    }),
-  ],
+  providers,
   callbacks: {
     async session({ session, token }: any) {
       if (token) {
@@ -106,6 +145,7 @@ export const authOptions = {
   session: {
     strategy: "jwt" as const,
   },
+  secret: getEnvVar('NEXTAUTH_SECRET', 'fallback-secret-key'),
 }
 
 // auth関数をNext.js 15対応で作成

@@ -92,6 +92,20 @@ export default function ChatPage() {
     await saveHistory(newHistory);
   };
 
+  // セッションをピン留め/解除
+  const pinSession = async (sessionId: string, isPinned: boolean) => {
+    const newHistory = await chatHistoryUtils.pinSession(history, sessionId, isPinned);
+    await saveHistory(newHistory);
+  };
+
+  // セッション名を変更
+  const renameSession = async (sessionId: string, newTitle: string) => {
+    const newHistory = await chatHistoryUtils.renameSession(history, sessionId, newTitle);
+    await saveHistory(newHistory);
+  };
+
+
+
   // メッセージを送信
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -179,6 +193,8 @@ export default function ChatPage() {
         onSessionSelect={selectSession}
         onNewChat={startNewChat}
         onDeleteSession={deleteSession}
+        onPinSession={pinSession}
+        onRenameSession={renameSession}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />

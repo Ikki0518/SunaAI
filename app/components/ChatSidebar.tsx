@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from 'react';
 import { ChatSession } from '../types/chat';
+import { chatHistoryUtils } from '../utils/chatHistory';
 
 interface ChatSidebarProps {
   sessions: ChatSession[];
@@ -8,6 +10,8 @@ interface ChatSidebarProps {
   onSessionSelect: (sessionId: string) => void;
   onNewChat: () => void;
   onDeleteSession: (sessionId: string) => void;
+  onPinSession: (sessionId: string, isPinned: boolean) => void;
+  onRenameSession: (sessionId: string, newTitle: string) => void;
   isOpen: boolean;
   onToggle: () => void;
 }
@@ -18,9 +22,43 @@ export default function ChatSidebar({
   onSessionSelect,
   onNewChat,
   onDeleteSession,
+  onPinSession,
+  onRenameSession,
   isOpen,
   onToggle,
 }: ChatSidebarProps) {
+  const [editingSession, setEditingSession] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState<string>('');
+
+  // セッションをピン留め順でソート
+  const sortedSessions = chatHistoryUtils.sortSessionsByPin(sessions);
+
+  const handleEditStart = (session: ChatSession) => {
+    setEditingSession(session.id);
+    setEditTitle(session.title);
+  };
+
+  const handleEditSave = (sessionId: string) => {
+    if (editTitle.trim() && editTitle !== sessions.find(s => s.id === sessionId)?.title) {
+      onRenameSession(sessionId, editTitle.trim());
+    }
+    setEditingSession(null);
+    setEditTitle('');
+  };
+
+  const handleEditCancel = () => {
+    setEditingSession(null);
+    setEditTitle('');
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent, sessionId: string) => {
+    if (e.key === 'Enter') {
+      handleEditSave(sessionId);
+    } else if (e.key === 'Escape') {
+      handleEditCancel();
+    }
+  };
+
   return (
     <div className={`
       fixed top-0 h-full w-80 bg-white border-r border-gray-200 shadow-lg flex flex-col z-40
@@ -55,13 +93,13 @@ export default function ChatSidebar({
 
         {/* Sessions List */}
         <div className="flex-1 overflow-y-auto">
-          {sessions.length === 0 ? (
+          {sortedSessions.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
               <p className="text-sm">まだチャットがありません</p>
             </div>
           ) : (
             <div className="p-2">
-              {sessions.map((session) => (
+              {sortedSessions.map((session) => (
                 <div
                   key={session.id}
                   className={`
@@ -71,17 +109,46 @@ export default function ChatSidebar({
                       ? 'bg-blue-50 border border-blue-200' 
                       : 'hover:bg-gray-50'
                     }
+                    ${session.isPinned ? 'ring-1 ring-yellow-300' : ''}
                   `}
-                  onClick={() => onSessionSelect(session.id)}
+                  onClick={() => editingSession !== session.id && onSessionSelect(session.id)}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className={`
-                        text-sm font-medium truncate
-                        ${session.id === currentSessionId ? 'text-blue-900' : 'text-gray-900'}
-                      `}>
-                        {session.title}
-                      </h3>
+                    <div className="flex-1 min-w-0 mr-2">
+                      {editingSession === session.id ? (
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onBlur={() => handleEditSave(session.id)}
+                          onKeyDown={(e) => handleKeyPress(e, session.id)}
+                          className="w-full text-sm font-medium bg-white border border-blue-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <div className="flex items-center">
+                          {session.isPinned && (
+                            <svg className="w-3 h-3 text-yellow-500 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                              <path d="M10.5 8.5L8.5 6.5 6.5 8.5 8.5 10.5l2-2z"/>
+                            </svg>
+                          )}
+                          <h3
+                            className={`
+                              text-sm font-medium truncate
+                              ${session.id === currentSessionId ? 'text-blue-900' : 'text-gray-900'}
+                            `}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              handleEditStart(session);
+                            }}
+                            title="ダブルクリックで編集"
+                          >
+                            {session.title}
+                          </h3>
+                        </div>
+                      )}
                       <p className="text-xs text-gray-500 mt-1">
                         {new Date(session.updatedAt).toLocaleDateString('ja-JP', {
                           month: 'short',
@@ -95,17 +162,56 @@ export default function ChatSidebar({
                       </p>
                     </div>
                     
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteSession(session.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-all duration-200 text-gray-400 hover:text-red-600"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    <div className="flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      {/* ピン留めボタン */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onPinSession(session.id, !session.isPinned);
+                        }}
+                        className={`p-1 rounded transition-colors duration-200 ${
+                          session.isPinned
+                            ? 'text-yellow-600 hover:bg-yellow-100'
+                            : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'
+                        }`}
+                        title={session.isPinned ? 'ピン留めを解除' : 'ピン留めする'}
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                          <path d="M10.5 8.5L8.5 6.5 6.5 8.5 8.5 10.5l2-2z"/>
+                        </svg>
+                      </button>
+
+                      {/* 編集ボタン */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditStart(session);
+                        }}
+                        className="p-1 hover:bg-blue-100 rounded transition-colors duration-200 text-gray-400 hover:text-blue-600"
+                        title="名前を編集"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+
+                      {/* 削除ボタン */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm('このチャットを削除しますか？')) {
+                            onDeleteSession(session.id);
+                          }
+                        }}
+                        className="p-1 hover:bg-red-100 rounded transition-colors duration-200 text-gray-400 hover:text-red-600"
+                        title="削除"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -114,7 +220,7 @@ export default function ChatSidebar({
         </div>
 
         {/* Footer */}
-                <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200">
           <div className="text-xs text-gray-500 text-center">
             Suna
           </div>

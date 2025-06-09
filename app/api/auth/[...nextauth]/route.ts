@@ -1,5 +1,5 @@
 import { DefaultSession } from "next-auth"
-import { handlers } from "@/app/lib/auth"
+import { GET, POST } from "@/app/lib/auth"
 
 declare module "next-auth" {
   interface Session {
@@ -9,4 +9,4 @@ declare module "next-auth" {
   }
 }
 
-export const { GET, POST } = handlers
+export { GET, POST }

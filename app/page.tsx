@@ -302,29 +302,30 @@ export default function ChatPage() {
 
             {/* 入力エリア */}
             <div className="flex-shrink-0">
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
-                <div className="flex items-end p-4">
+              <div className="bg-white rounded-xl border border-gray-300 shadow-sm overflow-hidden">
+                <div className="flex items-center p-3">
                   <textarea
-                    className="flex-1 resize-none border-0 outline-none text-gray-900 placeholder-gray-500 text-base leading-6 min-h-[24px] max-h-32"
+                    className="flex-1 resize-none border-0 outline-none text-gray-900 placeholder-gray-400 text-sm leading-5 min-h-[20px] max-h-24 text-center placeholder:text-center focus:text-left"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="メッセージを入力してください..."
                     rows={1}
                     style={{
-                      height: Math.min(Math.max(24, input.split('\n').length * 24), 128)
+                      height: Math.min(Math.max(20, input.split('\n').length * 20), 96),
+                      textAlign: input ? 'left' : 'center'
                     }}
                   />
                   
                   <button
                     onClick={handleSend}
                     disabled={loading || !input.trim()}
-                    className="ml-2 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg disabled:cursor-not-allowed"
+                    className="ml-2 w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow-md disabled:cursor-not-allowed"
                   >
                     {loading ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     ) : (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
                     )}

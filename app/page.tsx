@@ -27,11 +27,17 @@ export default function ChatPage() {
     }
   }, [session, status, router]);
 
-  // ローカルストレージから履歴を読み込み
+  // サーバーから履歴を読み込み
   useEffect(() => {
     if (session) {
-      const savedHistory = chatHistoryUtils.getHistory();
-      setHistory(savedHistory);
+      const loadHistory = async () => {
+        const savedHistory = await chatHistoryUtils.getHistory();
+        setHistory(savedHistory);
+        
+        // ローカルからサーバーへの移行を試行
+        await chatHistoryUtils.migrateLocalToServer();
+      };
+      loadHistory();
     }
   }, [session]);
 
@@ -60,30 +66,30 @@ export default function ChatPage() {
   const messages = currentSession?.messages || [];
 
   // 履歴を保存
-  const saveHistory = (newHistory: ChatHistory) => {
+  const saveHistory = async (newHistory: ChatHistory) => {
     setHistory(newHistory);
-    chatHistoryUtils.saveHistory(newHistory);
+    await chatHistoryUtils.saveHistory(newHistory);
   };
 
   // 新しいチャットを開始
-  const startNewChat = () => {
+  const startNewChat = async () => {
     const newSession = chatHistoryUtils.createNewSession();
     const newHistory = chatHistoryUtils.addSession(history, newSession);
-    saveHistory(newHistory);
+    await saveHistory(newHistory);
     setSidebarOpen(false); // 新しいチャット作成後にサイドバーを閉じる
   };
 
   // セッションを選択
-  const selectSession = (sessionId: string) => {
+  const selectSession = async (sessionId: string) => {
     const newHistory = chatHistoryUtils.setCurrentSession(history, sessionId);
-    saveHistory(newHistory);
+    await saveHistory(newHistory);
     setSidebarOpen(false); // セッション選択後にサイドバーを閉じる
   };
 
   // セッションを削除
-  const deleteSession = (sessionId: string) => {
-    const newHistory = chatHistoryUtils.deleteSession(history, sessionId);
-    saveHistory(newHistory);
+  const deleteSession = async (sessionId: string) => {
+    const newHistory = await chatHistoryUtils.deleteSession(history, sessionId);
+    await saveHistory(newHistory);
   };
 
   // メッセージを送信
@@ -107,8 +113,8 @@ export default function ChatPage() {
     };
 
     workingSession = chatHistoryUtils.addMessageToSession(workingSession, userMessage);
-    workingHistory = chatHistoryUtils.updateSession(workingHistory, workingSession.id, workingSession);
-    saveHistory(workingHistory);
+    workingHistory = await chatHistoryUtils.updateSession(workingHistory, workingSession.id, workingSession);
+    await saveHistory(workingHistory);
 
     const messageToSend = input;
     setInput("");
@@ -139,8 +145,8 @@ export default function ChatPage() {
       };
 
       workingSession = chatHistoryUtils.addMessageToSession(workingSession, botMessage);
-      workingHistory = chatHistoryUtils.updateSession(workingHistory, workingSession.id, workingSession);
-      saveHistory(workingHistory);
+      workingHistory = await chatHistoryUtils.updateSession(workingHistory, workingSession.id, workingSession);
+      await saveHistory(workingHistory);
 
     } catch (e) {
       const errorMessage: Message = {
@@ -150,8 +156,8 @@ export default function ChatPage() {
       };
 
       workingSession = chatHistoryUtils.addMessageToSession(workingSession, errorMessage);
-      workingHistory = chatHistoryUtils.updateSession(workingHistory, workingSession.id, workingSession);
-      saveHistory(workingHistory);
+      workingHistory = await chatHistoryUtils.updateSession(workingHistory, workingSession.id, workingSession);
+      await saveHistory(workingHistory);
     } finally {
       setLoading(false);
     }

@@ -32,7 +32,7 @@ async function trackUser(userId: string, name: string, email: string, provider: 
   }
 }
 
-export const authOptions = {
+const authOptions = {
   providers: [
     CredentialsProvider({
       name: "credentials",

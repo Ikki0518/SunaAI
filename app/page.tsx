@@ -184,6 +184,8 @@ export default function ChatPage() {
     }
   };
 
+
+
   return (
     <div className="relative h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       {/* サイドバー（固定位置） */}
@@ -313,10 +315,11 @@ export default function ChatPage() {
                       height: Math.min(Math.max(24, input.split('\n').length * 24), 128)
                     }}
                   />
+                  
                   <button
                     onClick={handleSend}
                     disabled={loading || !input.trim()}
-                    className="ml-4 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg disabled:cursor-not-allowed"
+                    className="ml-2 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

@@ -305,15 +305,14 @@ export default function ChatPage() {
               <div className="bg-white rounded-xl border border-gray-300 shadow-sm overflow-hidden">
                 <div className="flex items-center p-3">
                   <textarea
-                    className="flex-1 resize-none border-0 outline-none text-gray-900 placeholder-gray-400 text-sm leading-5 min-h-[20px] max-h-24 text-center placeholder:text-center focus:text-left"
+                    className="flex-1 resize-none border-0 outline-none text-gray-900 placeholder-gray-400 text-sm leading-5 min-h-[20px] max-h-24"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="メッセージを入力してください..."
                     rows={1}
                     style={{
-                      height: Math.min(Math.max(20, input.split('\n').length * 20), 96),
-                      textAlign: input ? 'left' : 'center'
+                      height: Math.min(Math.max(20, input.split('\n').length * 20), 96)
                     }}
                   />
                   

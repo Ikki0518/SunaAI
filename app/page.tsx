@@ -170,11 +170,11 @@ export default function ChatPage() {
 
       {/* 入力エリア */}
       <div className="bg-white border-t border-gray-200 shadow-lg">
-        <div className="max-w-4xl mx-auto px-4 py-3">
-          <div className="bg-gray-50 rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="flex items-end p-4">
+        <div className="max-w-4xl mx-auto px-4 py-2">
+          <div className="bg-gray-50 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="flex items-center px-3 py-2">
               <textarea
-                className="flex-1 resize-none border-0 outline-none bg-transparent text-gray-900 placeholder-gray-500 text-base leading-6 min-h-[24px] max-h-32"
+                className="flex-1 resize-none border-0 outline-none bg-transparent text-gray-900 placeholder-gray-500 text-sm leading-5 min-h-[20px] max-h-24"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -185,12 +185,12 @@ export default function ChatPage() {
               <button
                 onClick={handleSend}
                 disabled={loading || !input.trim()}
-                className="ml-4 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg disabled:cursor-not-allowed"
+                className="ml-3 w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow-md disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
                 )}

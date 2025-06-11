@@ -3,9 +3,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import UserMenu from './components/UserMenu';
-import ChatSidebar from './components/ChatSidebar';
-import { ChatSession, ChatMessage } from './types/chat';
-import { ChatHistoryManager } from './utils/chatHistory';
+import ChatSidebar from '@/app/components/ChatSidebar';
+import { ChatSession, ChatMessage } from '@/app/types/chat';
+import { ChatHistoryManager } from '@/app/utils/chatHistory';
 
 export default function ChatPage() {
   const { data: session, status } = useSession();

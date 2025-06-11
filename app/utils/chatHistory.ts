@@ -6,67 +6,18 @@ export class ChatHistoryManager {
   }
 
   static async saveChatSession(userId: string, session: ChatSession): Promise<void> {
-    try {
-      const response = await fetch('/api/chat-history', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'save',
-          userId,
-          session,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-    } catch (error) {
-      console.error('Failed to save chat session:', error);
-      // フォールバック: ローカルストレージに保存
-      this.saveToLocalStorage(userId, session);
-    }
+    // 一時的にローカルストレージのみ使用
+    this.saveToLocalStorage(userId, session);
   }
 
   static async loadChatSessions(userId: string): Promise<ChatSession[]> {
-    try {
-      const response = await fetch(`/api/chat-history?userId=${encodeURIComponent(userId)}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.sessions || [];
-    } catch (error) {
-      console.error('Failed to load chat sessions:', error);
-      // フォールバック: ローカルストレージから読み込み
-      return this.loadFromLocalStorage(userId);
-    }
+    // 一時的にローカルストレージのみ使用
+    return this.loadFromLocalStorage(userId);
   }
 
   static async deleteChatSession(userId: string, sessionId: string): Promise<void> {
-    try {
-      const response = await fetch('/api/chat-history', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          sessionId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-    } catch (error) {
-      console.error('Failed to delete chat session:', error);
-      // フォールバック: ローカルストレージから削除
-      this.deleteFromLocalStorage(userId, sessionId);
-    }
+    // 一時的にローカルストレージのみ使用
+    this.deleteFromLocalStorage(userId, sessionId);
   }
 
   static generateSessionTitle(messages: ChatMessage[]): string {

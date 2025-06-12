@@ -63,28 +63,33 @@ export default function SignIn() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Logo & Title */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
-            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8m-8 0V8a4 4 0 118 0v4m-8 0v4a4 4 0 108 0v-4" />
-            </svg>
+        <div className="text-center mb-12">
+          <div
+            className="text-5xl font-bold bg-gradient-to-r from-cyan-200/70 via-cyan-300/70 to-sky-400/70 bg-clip-text text-transparent mb-4"
+            style={{
+              fontFamily: 'var(--font-dancing-script)',
+              fontWeight: '700',
+              letterSpacing: '1px',
+              transform: 'skew(-3deg, 0deg)'
+            }}
+          >
+            Suna
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Suna</h1>
-          <p className="text-gray-600">AIアシスタントとの新しい対話体験</p>
+          <p className="text-gray-500 text-lg">AIアシスタントとの新しい対話体験</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+        <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-normal text-gray-800 mb-3">
               {isSignUp ? "新規登録" : "ログイン"}
             </h2>
             <p className="text-gray-500">
-              {isSignUp 
-                ? "アカウントを作成して始めましょう" 
+              {isSignUp
+                ? "アカウントを作成して始めましょう"
                 : "メールアドレスとパスワードでログイン"
               }
             </p>
@@ -92,13 +97,13 @@ export default function SignIn() {
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
               {error}
             </div>
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 メールアドレス
@@ -108,7 +113,7 @@ export default function SignIn() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50"
                 placeholder="your@email.com"
                 required
               />
@@ -123,7 +128,7 @@ export default function SignIn() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50"
                 placeholder="6文字以上のパスワード"
                 required
               />
@@ -139,7 +144,7 @@ export default function SignIn() {
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50"
                   placeholder="パスワードを再入力"
                   required
                 />
@@ -149,7 +154,7 @@ export default function SignIn() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white font-medium py-4 px-6 rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed"
+              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white font-medium py-4 px-6 rounded-xl transition-all duration-200 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <div className="flex items-center justify-center">
@@ -163,7 +168,7 @@ export default function SignIn() {
           </form>
 
           {/* Toggle Sign Up / Sign In */}
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <button
               onClick={() => {
                 setIsSignUp(!isSignUp)
@@ -172,37 +177,19 @@ export default function SignIn() {
                 setPassword("")
                 setConfirmPassword("")
               }}
-              className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              className="text-blue-500 hover:text-blue-600 font-medium transition-colors"
             >
-              {isSignUp 
-                ? "既にアカウントをお持ちですか？ログイン" 
+              {isSignUp
+                ? "既にアカウントをお持ちですか？ログイン"
                 : "アカウントをお持ちでない方は新規登録"
               }
             </button>
-          </div>
-
-          {/* Features */}
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <div className="grid grid-cols-1 gap-3">
-              <div className="flex items-center space-x-3 text-sm text-gray-600">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>チャット履歴を安全に保存</span>
-              </div>
-              <div className="flex items-center space-x-3 text-sm text-gray-600">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span>複数デバイスでの同期</span>
-              </div>
-              <div className="flex items-center space-x-3 text-sm text-gray-600">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span>個人設定の保存</span>
-              </div>
-            </div>
           </div>
         </div>
 
         {/* Footer */}
         <div className="text-center mt-8">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-400">
             {isSignUp ? "登録" : "ログイン"}することで、利用規約とプライバシーポリシーに同意したことになります
           </p>
         </div>

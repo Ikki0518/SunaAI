@@ -23,8 +23,17 @@ export async function POST(request: NextRequest) {
     const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
     if (!GOOGLE_SHEETS_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
-      console.log('Google Sheets credentials missing');
-      return NextResponse.json({ error: 'Configuration missing' }, { status: 500 });
+      console.log('🐛 [INFO] Google Sheets credentials missing - user tracking disabled');
+      // Google Sheetsが設定されていない場合は、ログのみ出力して成功を返す
+      console.log('🐛 [INFO] User tracking (local log only):', {
+        userId: body.userId,
+        name: body.name,
+        email: body.email,
+        provider: body.provider,
+        action: body.action,
+        timestamp: body.timestamp
+      });
+      return NextResponse.json({ success: true, mode: 'local-log-only' });
     }
 
     // Google Sheets API 認証
@@ -86,7 +95,14 @@ export async function GET() {
     const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
     if (!GOOGLE_SHEETS_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
-      return NextResponse.json({ error: 'Configuration missing' }, { status: 500 });
+      console.log('🐛 [INFO] Google Sheets credentials missing - returning default stats');
+      return NextResponse.json({
+        totalUsers: 0,
+        totalLogins: 0,
+        totalRecords: 0,
+        mode: 'local-only',
+        message: 'Google Sheets tracking disabled'
+      });
     }
 
     const serviceAccountAuth = new JWT({

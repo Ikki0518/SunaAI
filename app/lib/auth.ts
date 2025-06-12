@@ -6,8 +6,12 @@ import { userServiceServer } from "./userServiceServer"
 // 環境変数チェック関数
 function getEnvVar(key: string, fallback?: string): string {
   const value = process.env[key];
+  // 本番環境では詳細なログを控える
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🐛 [DEBUG] Environment variable ${key}:`, value ? `SET (${value.length} chars)` : 'NOT SET');
+  }
   if (!value && !fallback) {
-    console.warn(`Environment variable ${key} is not set`);
+    console.warn(`🐛 [WARNING] Environment variable ${key} is not set`);
     return '';
   }
   return value || fallback || '';
@@ -17,7 +21,11 @@ function getEnvVar(key: string, fallback?: string): string {
 async function trackUser(userId: string, name: string, email: string, provider: string, action: 'signup' | 'signin', image?: string) {
   try {
     const baseUrl = getEnvVar('NEXTAUTH_URL', 'http://localhost:3000');
-    await fetch(`${baseUrl}/api/user-tracking`, {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🐛 [DEBUG] Tracking user:', { userId, name, email, provider, action, baseUrl });
+    }
+    
+    const response = await fetch(`${baseUrl}/api/user-tracking`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -30,8 +38,20 @@ async function trackUser(userId: string, name: string, email: string, provider: 
         image
       })
     });
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🐛 [DEBUG] User tracking response:', response.status, response.statusText);
+    }
+    
+    // エラーでも処理を続行（ユーザートラッキングは補助機能）
+    if (!response.ok && process.env.NODE_ENV === 'development') {
+      console.warn('🐛 [WARNING] User tracking failed but continuing authentication');
+    }
   } catch (error) {
-    console.error('User tracking failed:', error);
+    // ユーザートラッキングの失敗は認証プロセスを停止させない
+    if (process.env.NODE_ENV === 'development') {
+      console.error('🐛 [INFO] User tracking failed (non-critical):', error);
+    }
   }
 }
 

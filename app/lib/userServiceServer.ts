@@ -14,24 +14,45 @@ class UserServiceServer {
 
   private getUsers(): User[] {
     try {
+      console.log('🐛 [DEBUG] Reading users file:', USERS_FILE_PATH);
       this.ensureDataDir();
       if (fs.existsSync(USERS_FILE_PATH)) {
         const data = fs.readFileSync(USERS_FILE_PATH, 'utf8');
-        return JSON.parse(data);
+        console.log('🐛 [DEBUG] File content length:', data.length);
+        const users = JSON.parse(data);
+        console.log('🐛 [DEBUG] Parsed users count:', users.length);
+        return users;
       }
+      console.log('🐛 [DEBUG] Users file does not exist, returning empty array');
       return [];
     } catch (error) {
-      console.error('ユーザーデータの読み込みエラー:', error);
+      console.error('🐛 [CRITICAL] ユーザーデータの読み込みエラー:', error);
+      console.error('🐛 [CRITICAL] File path:', USERS_FILE_PATH);
+      console.error('🐛 [CRITICAL] File exists:', fs.existsSync(USERS_FILE_PATH));
       return [];
     }
   }
 
   private saveUsers(users: User[]): void {
     try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🐛 [DEBUG] Saving users:', users.length, 'users to', USERS_FILE_PATH);
+      }
       this.ensureDataDir();
-      fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf8');
+      const jsonData = JSON.stringify(users, null, 2);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🐛 [DEBUG] JSON data length:', jsonData.length);
+      }
+      fs.writeFileSync(USERS_FILE_PATH, jsonData, 'utf8');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🐛 [DEBUG] Users saved successfully');
+      }
     } catch (error) {
-      console.error('ユーザーデータの保存エラー:', error);
+      console.error('🐛 [CRITICAL] ユーザーデータの保存エラー:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('🐛 [CRITICAL] Users count:', users.length);
+        console.error('🐛 [CRITICAL] File path:', USERS_FILE_PATH);
+      }
     }
   }
 

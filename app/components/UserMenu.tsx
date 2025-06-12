@@ -36,7 +36,7 @@ export default function UserMenu() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-2 p-2 rounded-xl hover:bg-gray-100 transition-colors"
       >
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-sky-500 flex items-center justify-center">
           {session.user.image ? (
             <img
               src={session.user.image}
@@ -76,7 +76,7 @@ export default function UserMenu() {
           <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-200 z-20">
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-sky-500 flex items-center justify-center">
                   {session.user.image ? (
                     <img
                       src={session.user.image}

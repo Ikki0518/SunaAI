@@ -1,43 +1,91 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import UserMenu from './components/UserMenu';
+import ChatSidebar from './components/ChatSidebar';
+import { ChatSession, ChatMessage } from '@/app/types/chat';
+import { ChatHistoryManager } from '@/app/utils/chatHistory';
 
 export default function ChatPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<Array<{role: string, content: string}>>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // SSR回避
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 認証チェック
   useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🐛 [DEBUG] Auth status changed:', { status, hasSession: !!session, userId: session?.user?.id });
+    }
     if (status === "unauthenticated") {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🐛 [DEBUG] Redirecting to signin - user not authenticated');
+      }
       router.push('/auth/signin');
     }
-  }, [session, status, router]);
+  }, [status, router]);
 
-  // 認証されていない場合は何も表示しない
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center animate-pulse">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8m-8 0V8a4 4 0 118 0v4m-8 0v4a4 4 0 108 0v-4" />
-            </svg>
-          </div>
-          <p className="text-gray-500">読み込み中...</p>
-        </div>
-      </div>
-    );
-  }
+  // 初期化時に新しいセッション作成
+  useEffect(() => {
+    if (mounted && !currentSession) {
+      const newSession = ChatHistoryManager.createNewSession();
+      setCurrentSession(newSession);
+    }
+  }, [mounted, currentSession]);
 
-  if (!session) {
-    return null;
-  }
+  // セッション保存
+  const saveCurrentSession = useCallback(() => {
+    if (!mounted || !currentSession || messages.length === 0) return;
+
+    const updatedSession: ChatSession = {
+      ...currentSession,
+      messages,
+      conversationId: conversationId || undefined,
+      title: messages.length > 0 ? ChatHistoryManager.generateSessionTitle(messages) : currentSession.title,
+      updatedAt: Date.now(),
+    };
+
+    ChatHistoryManager.saveChatSession(updatedSession);
+  }, [mounted, currentSession, messages, conversationId]);
+
+  // メッセージが変更されたら自動保存
+  useEffect(() => {
+    if (messages.length > 0 && mounted && currentSession) {
+      const timeoutId = setTimeout(() => {
+        saveCurrentSession();
+      }, 2000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [messages, conversationId, mounted, currentSession, saveCurrentSession]);
+
+  // 新しいチャット
+  const handleNewChat = () => {
+    saveCurrentSession();
+    const newSession = ChatHistoryManager.createNewSession();
+    setCurrentSession(newSession);
+    setMessages([]);
+    setConversationId(null);
+  };
+
+  // セッション選択
+  const handleSessionSelect = (session: ChatSession) => {
+    saveCurrentSession();
+    setCurrentSession(session);
+    setMessages(session.messages || []);
+    setConversationId(session.conversationId || null);
+  };
 
   // メッセージを送信
   const handleSend = async () => {
@@ -45,10 +93,15 @@ export default function ChatPage() {
 
     const userMessage = input;
     setInput("");
-    setMessages(prev => [...prev, { role: "user", content: userMessage }]);
+    const userMsg: ChatMessage = { role: "user", content: userMessage, timestamp: Date.now() };
+    setMessages(prev => [...prev, userMsg]);
     setLoading(true);
 
     try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🐛 [DEBUG] Sending chat request:', { message: userMessage, conversationId });
+      }
+      
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,17 +111,19 @@ export default function ChatPage() {
         }),
       });
 
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🐛 [DEBUG] Chat API response status:', res.status, res.statusText);
+      }
       const data = await res.json();
-      console.log("[応答データ]", data);
-      console.log("[現在のメッセージ数]", messages.length);
+      if (process.env.NODE_ENV === 'development') {
+        console.log("🐛 [DEBUG] Chat API response data:", data);
+      }
 
       if (res.ok && data.answer) {
         console.log("[ボット応答を追加]", data.answer);
-        setMessages(prev => {
-          const newMessages = [...prev, { role: "bot", content: data.answer }];
-          console.log("[新しいメッセージ配列長さ]", newMessages.length);
-          return newMessages;
-        });
+        const botMsg: ChatMessage = { role: "bot", content: data.answer, timestamp: Date.now() };
+        setMessages(prev => [...prev, botMsg]);
+        
         // conversationIdを更新
         if (data.conversationId) {
           console.log("[conversation_id更新]", data.conversationId);
@@ -76,11 +131,13 @@ export default function ChatPage() {
         }
       } else {
         console.log("[エラー応答]", res.status, data);
-        setMessages(prev => [...prev, { role: "bot", content: "エラーが発生しました" }]);
+        const errorMsg: ChatMessage = { role: "bot", content: "エラーが発生しました", timestamp: Date.now() };
+        setMessages(prev => [...prev, errorMsg]);
       }
     } catch (error) {
       console.error("[エラー]", error);
-      setMessages(prev => [...prev, { role: "bot", content: "エラーが発生しました" }]);
+      const errorMsg: ChatMessage = { role: "bot", content: "エラーが発生しました", timestamp: Date.now() };
+      setMessages(prev => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }
@@ -93,111 +150,153 @@ export default function ChatPage() {
     }
   };
 
+  // 認証チェック中は何も表示しない
+  if (status === "loading") {
+    return null;
+  }
+
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex flex-col">
-      {/* ヘッダー */}
-      <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b border-gray-200/50">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">Suna</h1>
-              <p className="text-sm text-gray-500 mt-1">AIアシスタント</p>
+    <div className="h-screen bg-white relative overflow-hidden">
+      {/* メインコンテンツ */}
+      <div
+        className={`h-full flex flex-col overflow-hidden bg-white transition-all duration-300 ease-in-out ${
+          sidebarOpen ? 'ml-80' : 'ml-16'
+        }`}
+      >
+        {/* ヘッダー */}
+        <div className="sticky top-0 z-[60] bg-white border-b border-gray-100">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center relative">
+                  {/* Sunaロゴ - 提供画像に完全に忠実なSVG再現 */}
+                  <svg width="130" height="55" viewBox="0 0 130 55" className="flex-shrink-0">
+                    {/* 大きな円（右上、明るいターコイズブルー） */}
+                    <circle cx="105" cy="20" r="13" fill="#67E8F9" opacity="0.85"/>
+                    
+                    {/* 中くらいの円（左中央、濃いブルー） */}
+                    <circle cx="88" cy="28" r="8" fill="#2563EB" opacity="0.9"/>
+                    
+                    {/* 小さな円（右下、薄いターコイズ） */}
+                    <circle cx="98" cy="35" r="5" fill="#A7F3D0" opacity="0.75"/>
+                    
+                    {/* テキスト "suna" - 太字、濃いネイビー */}
+                    <text x="0" y="42" fontSize="26" fontWeight="700" fill="#1E293B" fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letterSpacing="-1.2px">
+                      suna
+                    </text>
+                  </svg>
+                </div>
+              </div>
+              <UserMenu />
             </div>
-            <UserMenu />
           </div>
         </div>
-      </div>
 
-      {/* チャットエリア */}
-      <div className="flex-1 overflow-hidden">
-        <div className="max-w-4xl mx-auto px-6 py-8 h-full flex flex-col">
+        {/* チャットエリア */}
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* メッセージエリア */}
-          <div className="flex-1 overflow-y-auto space-y-6">
-            {messages.length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8m-8 0V8a4 4 0 118 0v4m-8 0v4a4 4 0 108 0v-4" />
-                  </svg>
+          <div className="flex-1 overflow-y-auto">
+            {messages.length === 0 ? (
+              /* 初期画面 */
+              <div className="h-full flex flex-col items-center justify-center px-6">
+                <div className="text-center mb-16">
+                  {mounted && session?.user?.name ? (
+                    <h1 className="text-4xl font-normal text-gray-800 mb-2">
+                      こんにちは、{session.user.name}さん
+                    </h1>
+                  ) : (
+                    <h1 className="text-4xl font-normal text-gray-800 mb-2">
+                      こんにちは
+                    </h1>
+                  )}
+                  <p className="text-lg text-gray-500">今日は何についてお話ししましょうか？</p>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">チャットを始めましょう</h3>
-                <p className="text-gray-500">何でもお気軽にお聞きください</p>
               </div>
-            )}
-            
-            {messages.map((msg, idx) => (
-              <div key={`${msg.role}-${idx}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-3xl ${msg.role === "user" ? "order-2" : "order-1"}`}>
-                    <div
-                      className={`px-6 py-4 rounded-2xl shadow-sm ${
-                        msg.role === "user"
-                          ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white ml-12"
-                          : "bg-white border border-gray-200 mr-12"
-                      }`}
-                    >
-                      <div className={`text-sm font-medium mb-2 ${msg.role === "user" ? "text-blue-100" : "text-gray-500"}`}>
-                        {msg.role === "user" ? "あなた" : "Suna"}
-                      </div>
-                      <div className={`whitespace-pre-wrap leading-relaxed ${msg.role === "user" ? "text-white" : "text-gray-800"}`}>
-                        {msg.content}
+            ) : (
+              /* メッセージ表示エリア */
+              <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
+                {messages.map((msg, idx) => (
+                  <div key={`${msg.role}-${idx}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-2xl ${msg.role === "user" ? "order-2" : "order-1"}`}>
+                      <div
+                        className={`px-6 py-4 rounded-2xl ${
+                          msg.role === "user"
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-100 text-gray-900"
+                        }`}
+                      >
+                        <div className={`text-sm font-medium mb-2 ${msg.role === "user" ? "text-blue-100" : "text-gray-600"}`}>
+                          {msg.role === "user" ? "あなた" : "Suna"}
+                        </div>
+                        <div className="whitespace-pre-wrap leading-relaxed">
+                          {msg.content}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-            ))}
-            
-            {loading && (
-              <div className="flex justify-start">
-                <div className="max-w-3xl mr-12">
-                  <div className="px-6 py-4 rounded-2xl bg-white border border-gray-200 shadow-sm">
-                    <div className="text-sm font-medium mb-2 text-gray-500">Suna</div>
-                    <div className="flex items-center space-x-2">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                ))}
+                
+                {loading && (
+                  <div className="flex justify-start">
+                    <div className="max-w-2xl">
+                      <div className="px-6 py-4 rounded-2xl bg-gray-100">
+                        <div className="text-sm font-medium mb-2 text-gray-600">Suna</div>
+                        <div className="flex items-center space-x-2">
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          </div>
+                          <span className="text-gray-500 text-sm">考えています...</span>
+                        </div>
                       </div>
-                      <span className="text-sm text-gray-500">考え中...</span>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* 入力エリア */}
-      <div className="bg-white border-t border-gray-200 shadow-lg">
-        <div className="max-w-4xl mx-auto px-4 py-2">
-          <div className="bg-gray-50 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="flex items-center px-3 py-2">
-              <textarea
-                className="flex-1 resize-none border-0 outline-none bg-transparent text-gray-900 placeholder-gray-500 text-sm leading-5 min-h-[20px] max-h-24"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="メッセージを入力してください..."
-                rows={1}
-              />
-              
-              <button
-                onClick={handleSend}
-                disabled={loading || !input.trim()}
-                className="ml-3 w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow-md disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                )}
-              </button>
+          {/* 入力エリア */}
+          <div className="border-t border-gray-100 bg-white">
+            <div className="max-w-3xl mx-auto px-6 py-6">
+              <div className="relative">
+                <div className="flex items-end space-x-4 bg-gray-50 rounded-3xl p-4 border border-gray-200">
+                  <div className="flex-1">
+                    <textarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Sunaに相談する"
+                      className="w-full resize-none border-0 bg-transparent text-gray-900 placeholder-gray-500 focus:ring-0 focus:outline-none text-base leading-6"
+                      rows={1}
+                      style={{ minHeight: '24px', maxHeight: '120px' }}
+                    />
+                  </div>
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim() || loading}
+                    className="flex-shrink-0 bg-blue-500 text-white p-3 rounded-xl hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* サイドバー（オーバーレイ） */}
+      <ChatSidebar
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        onNewChat={handleNewChat}
+        onSessionSelect={handleSessionSelect}
+        currentSessionId={currentSession?.id}
+      />
     </div>
   );
 }

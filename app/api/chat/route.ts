@@ -4,16 +4,42 @@ export async function POST(req: Request) {
   try {
     const { message, conversationId } = await req.json();
 
+    // Environment variables check
     const apiUrl = process.env.DIFY_API_BASE_URL || process.env.DIFY_API_URL || "https://api.dify.ai/v1";
     const apiKey = process.env.DIFY_API_KEY;
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log("🐛 [DEBUG] Environment check:", {
+        hasApiKey: !!apiKey,
+        apiKeyLength: apiKey?.length || 0,
+        apiUrl,
+        nodeEnv: process.env.NODE_ENV
+      });
+    }
 
-    if (!apiKey) {
-      return NextResponse.json({ answer: "API設定エラー" }, { status: 500 });
+    if (!apiKey || apiKey.includes('your-actual') || apiKey.includes('実際の')) {
+      console.error("🐛 [CRITICAL] DIFY_API_KEY is not properly configured!");
+      return NextResponse.json({
+        answer: "申し訳ございませんが、現在チャット機能を利用するためのAPI設定が完了していません。\n\n管理者にお問い合わせください。",
+        conversationId: conversationId || `demo_${Date.now()}`
+      }, { status: 200 });
     }
 
     console.log("[送信メッセージ]", message);
 
-    const response = await fetch(`${apiUrl}/chat-messages`, {
+    // URL validation
+    let validApiUrl;
+    try {
+      validApiUrl = new URL(`${apiUrl}/chat-messages`);
+    } catch (error) {
+      console.error("🐛 [CRITICAL] Invalid API URL:", apiUrl);
+      return NextResponse.json({
+        answer: "申し訳ございませんが、API設定に問題があります。管理者にお問い合わせください。",
+        conversationId: conversationId || `demo_${Date.now()}`
+      }, { status: 200 });
+    }
+
+    const response = await fetch(validApiUrl.toString(), {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,

@@ -40,5 +40,12 @@
     "password": "$2b$12$OZSw532zYWlfttaUsPnRber56kvCecmXYMkJxQ5KHeiNmYqO8cNVy",
     "name": "testuser3",
     "createdAt": 1749536710073
+  },
+  {
+    "id": "1749636078988",
+    "email": "testuser2@test.com",
+    "password": "$2b$12$afr29yE3UtP.szLDaY7jVu5O8j8RHX6BfEk7RcASObAxCX46H3zqC",
+    "name": "testuser2",
+    "createdAt": 1749636078988
   }
 ]

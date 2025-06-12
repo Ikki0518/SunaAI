@@ -170,15 +170,15 @@ export default function ChatPage() {
               <div className="flex items-center space-x-4">
                 <div className="flex items-center relative">
                   {/* Sunaロゴ - 提供画像に完全に忠実なSVG再現 */}
-                  <svg width="130" height="55" viewBox="0 0 130 55" className="flex-shrink-0">
+                  <svg width="115" height="55" viewBox="0 0 115 55" className="flex-shrink-0">
                     {/* 大きな円（右上、明るいターコイズブルー） */}
-                    <circle cx="105" cy="20" r="13" fill="#67E8F9" opacity="0.85"/>
+                    <circle cx="90" cy="20" r="13" fill="#67E8F9" opacity="0.85"/>
                     
                     {/* 中くらいの円（左中央、濃いブルー） */}
-                    <circle cx="88" cy="28" r="8" fill="#2563EB" opacity="0.9"/>
+                    <circle cx="73" cy="28" r="8" fill="#2563EB" opacity="0.9"/>
                     
                     {/* 小さな円（右下、薄いターコイズ） */}
-                    <circle cx="98" cy="35" r="5" fill="#A7F3D0" opacity="0.75"/>
+                    <circle cx="83" cy="35" r="5" fill="#A7F3D0" opacity="0.75"/>
                     
                     {/* テキスト "suna" - 太字、濃いネイビー */}
                     <text x="0" y="42" fontSize="26" fontWeight="700" fill="#1E293B" fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letterSpacing="-1.2px">
@@ -241,11 +241,37 @@ export default function ChatPage() {
                     <div className="max-w-2xl">
                       <div className="px-6 py-4 rounded-2xl bg-gray-100">
                         <div className="text-sm font-medium mb-2 text-gray-600">Suna</div>
-                        <div className="flex items-center space-x-2">
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="flex items-center space-x-3">
+                          {/* 泡がぷくぷくするアニメーション */}
+                          <div className="relative flex items-center justify-center w-8 h-6">
+                            {/* 大きな泡 */}
+                            <div
+                              className="absolute w-3 h-3 bg-gradient-to-br from-cyan-200 to-cyan-300 rounded-full opacity-70"
+                              style={{
+                                animation: 'bubble-float 2s ease-in-out infinite',
+                                animationDelay: '0s'
+                              }}
+                            ></div>
+                            {/* 中くらいの泡 */}
+                            <div
+                              className="absolute w-2 h-2 bg-gradient-to-br from-blue-200 to-blue-300 rounded-full opacity-80"
+                              style={{
+                                animation: 'bubble-float 2.5s ease-in-out infinite',
+                                animationDelay: '0.8s',
+                                left: '18px',
+                                top: '2px'
+                              }}
+                            ></div>
+                            {/* 小さな泡 */}
+                            <div
+                              className="absolute w-1.5 h-1.5 bg-gradient-to-br from-teal-200 to-teal-300 rounded-full opacity-60"
+                              style={{
+                                animation: 'bubble-float 1.8s ease-in-out infinite',
+                                animationDelay: '1.2s',
+                                left: '8px',
+                                top: '-2px'
+                              }}
+                            ></div>
                           </div>
                           <span className="text-gray-500 text-sm">考えています...</span>
                         </div>

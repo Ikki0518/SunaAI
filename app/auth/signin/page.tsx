@@ -67,16 +67,23 @@ export default function SignIn() {
       <div className="max-w-md w-full">
         {/* Logo & Title */}
         <div className="text-center mb-12">
-          <div
-            className="text-5xl font-bold bg-gradient-to-r from-cyan-200/70 via-cyan-300/70 to-sky-400/70 bg-clip-text text-transparent mb-4"
-            style={{
-              fontFamily: 'var(--font-dancing-script)',
-              fontWeight: '700',
-              letterSpacing: '1px',
-              transform: 'skew(-3deg, 0deg)'
-            }}
-          >
-            Suna
+          <div className="flex justify-center mb-6">
+            {/* Sunaロゴ - ログイン画面用（大きめサイズ） */}
+            <svg width="140" height="70" viewBox="0 0 140 70" className="flex-shrink-0">
+              {/* 大きな円（右上、明るいターコイズブルー） */}
+              <circle cx="105" cy="25" r="16" fill="#67E8F9" opacity="0.85"/>
+              
+              {/* 中くらいの円（左中央、濃いブルー） */}
+              <circle cx="85" cy="35" r="10" fill="#2563EB" opacity="0.9"/>
+              
+              {/* 小さな円（右下、薄いターコイズ） */}
+              <circle cx="98" cy="45" r="6" fill="#A7F3D0" opacity="0.75"/>
+              
+              {/* テキスト "suna" - 太字、濃いネイビー */}
+              <text x="0" y="50" fontSize="32" fontWeight="700" fill="#1E293B" fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letterSpacing="-1.5px">
+                suna
+              </text>
+            </svg>
           </div>
           <p className="text-gray-500 text-lg">AIアシスタントとの新しい対話体験</p>
         </div>

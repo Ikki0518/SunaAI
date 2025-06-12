@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import UserMenu from './components/UserMenu';
 import ChatSidebar from './components/ChatSidebar';
+import SunaLogo from '@/app/components/SunaLogo';
 import { ChatSession, ChatMessage } from '@/app/types/chat';
 import { ChatHistoryManager } from '@/app/utils/chatHistory';
 
@@ -169,22 +170,7 @@ export default function ChatPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="flex items-center relative">
-                  {/* Sunaロゴ - 提供画像に完全に忠実なSVG再現 */}
-                  <svg width="115" height="55" viewBox="0 0 115 55" className="flex-shrink-0">
-                    {/* 大きな円（右上、明るいターコイズブルー） */}
-                    <circle cx="90" cy="20" r="13" fill="#67E8F9" opacity="0.85"/>
-                    
-                    {/* 中くらいの円（左中央、濃いブルー） */}
-                    <circle cx="73" cy="28" r="8" fill="#2563EB" opacity="0.9"/>
-                    
-                    {/* 小さな円（右下、薄いターコイズ） */}
-                    <circle cx="83" cy="35" r="5" fill="#A7F3D0" opacity="0.75"/>
-                    
-                    {/* テキスト "suna" - 太字、濃いネイビー */}
-                    <text x="0" y="42" fontSize="26" fontWeight="700" fill="#1E293B" fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letterSpacing="-1.2px">
-                      suna
-                    </text>
-                  </svg>
+                  <SunaLogo size="sm" />
                 </div>
               </div>
               <UserMenu />

@@ -158,15 +158,26 @@ export const authOptions = {
   callbacks: {
     async session({ session, token }: any) {
       if (token) {
-        session.user.id = token.id as string
+        session.user.id = token.id as string;
+        // ユーザー情報を最新に更新
+        if (token.id) {
+          try {
+            const latestUser = await userServiceServer.getUserByEmail(session.user.email);
+            if (latestUser) {
+              session.user.name = latestUser.name;
+            }
+          } catch (error) {
+            console.error('Failed to fetch latest user data:', error);
+          }
+        }
       }
-      return session
+      return session;
     },
     async jwt({ token, user }: any) {
       if (user) {
-        token.id = user.id
+        token.id = user.id;
       }
-      return token
+      return token;
     },
   },
   pages: {

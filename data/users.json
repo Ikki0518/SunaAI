@@ -3,14 +3,14 @@
     "id": "1749359504483",
     "email": "test@example.com",
     "password": "$2b$12$1Mc6kAZCNFHRKOKuXefIjOsli/KJ0Toh0nBMfRSl6SP0NpuFDsoLi",
-    "name": "test",
+    "name": "testSuna テストユーザー- 更新テスト- 再テスト",
     "createdAt": 1749359504483
   },
   {
     "id": "1749359762623",
     "email": "ikki_y0518@icloud.com",
     "password": "$2b$12$H.f5kPpFbnaK1E16iB3KJOYqZBr/rkGC2Ik9wcO/LhZZg7JjwCTgG",
-    "name": "ikki_y0518",
+    "name": "いっき",
     "createdAt": 1749359762623
   },
   {

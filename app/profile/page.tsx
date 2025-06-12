@@ -3,10 +3,12 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { useTheme } from "../contexts/ThemeContext";
 
 export default function ProfilePage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
   const [stats, setStats] = useState({
     totalChats: 0,
     totalMessages: 0,
@@ -45,7 +47,7 @@ export default function ProfilePage() {
   const userInitial = session.user?.name?.charAt(0).toUpperCase() || 'U';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+    <div className={`min-h-screen ${resolvedTheme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'}`}>
       {/* ヘッダー */}
       <div className="sticky top-0 z-10 backdrop-blur-xl bg-white/80 border-b border-gray-200/50">
         <div className="max-w-4xl mx-auto px-6 py-4">

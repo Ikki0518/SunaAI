@@ -248,8 +248,8 @@ export default function ChatPage() {
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                {/* デバッグ情報表示（本番環境でのテスト用） */}
-                {showDebugInfo && session?.user?.email && (
+                {/* デバッグ情報表示（常に表示） */}
+                {session && (
                   <div className="text-xs bg-yellow-100 border border-yellow-300 rounded px-3 py-2 mr-2 max-w-md">
                     <div className="font-bold mb-1">🐛 DEBUG INFO</div>
                     <div>Original: {session.user.email}</div>
@@ -273,8 +273,8 @@ export default function ChatPage() {
                     )}
                   </div>
                 )}
-                {/* 管理者ボタン - 常に表示（ログイン済みユーザーのみ） */}
-                {session?.user?.email && (
+                {/* 管理者ボタン - 絶対に表示 */}
+                {session && (
                   <div className="relative admin-dropdown">
                     <button
                       onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}

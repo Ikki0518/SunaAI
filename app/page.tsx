@@ -8,6 +8,8 @@ import SunaLogo from '@/app/components/SunaLogo';
 import { ChatSession, ChatMessage } from '@/app/types/chat';
 import { ChatHistoryManager } from '@/app/utils/chatHistory';
 
+// FORCE CACHE REFRESH - 2025/06/13 17:26
+
 export default function ChatPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -358,29 +360,38 @@ export default function ChatPage() {
             {messages.length === 0 ? (
               /* 初期画面 */
               <div className="h-full flex flex-col items-center justify-center px-6">
-                {/* 強制管理者アクセスボタン */}
-                {session?.user?.email && (
-                  <div className="w-full max-w-2xl mb-8 p-6 bg-red-50 border-2 border-red-300 rounded-xl">
-                    <div className="text-center">
-                      <h2 className="text-xl font-bold text-red-800 mb-4">🚨 管理者アクセステスト</h2>
-                      <p className="text-red-600 mb-4">ユーザー: {session.user.email}</p>
-                      <div className="space-y-3">
-                        <a
-                          href="/admin"
-                          className="block w-full py-3 px-6 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors"
-                        >
-                          🔧 管理者ダッシュボードへ
-                        </a>
-                        <a
-                          href="/admin-access"
-                          className="block w-full py-3 px-6 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          📊 管理者アクセスページへ
-                        </a>
-                      </div>
+                {/* 強制管理者アクセスボタン - 常に表示 */}
+                <div className="w-full max-w-2xl mb-8 p-6 bg-red-50 border-4 border-red-500 rounded-xl shadow-2xl">
+                  <div className="text-center">
+                    <h2 className="text-2xl font-bold text-red-800 mb-4">🚨 管理者アクセステスト - 強制表示</h2>
+                    <p className="text-red-600 mb-4">
+                      ユーザー: {session?.user?.email || 'セッションなし'}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      このボタンは常に表示されます（キャッシュテスト用）
+                    </p>
+                    <div className="space-y-3">
+                      <a
+                        href="/admin"
+                        className="block w-full py-4 px-6 bg-red-600 text-white font-bold text-lg rounded-lg hover:bg-red-700 transition-colors shadow-lg"
+                      >
+                        🔧 管理者ダッシュボードへ（直接リンク）
+                      </a>
+                      <a
+                        href="/admin-access"
+                        className="block w-full py-4 px-6 bg-blue-600 text-white font-bold text-lg rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                      >
+                        📊 管理者アクセスページへ
+                      </a>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="block w-full py-3 px-6 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700 transition-colors"
+                      >
+                        🔄 ページリロード
+                      </button>
                     </div>
                   </div>
-                )}
+                </div>
                 <div className="text-center mb-16">
                   {mounted && session?.user?.name ? (
                     <h1 className="text-4xl font-normal text-gray-800 mb-2">

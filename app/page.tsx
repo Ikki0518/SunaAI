@@ -9,7 +9,7 @@ import ForceAdminButton from '@/app/components/ForceAdminButton';
 import { ChatSession, ChatMessage } from '@/app/types/chat';
 import { ChatHistoryManager } from '@/app/utils/chatHistory';
 
-// FORCE CACHE REFRESH - 2025/06/13 17:33
+// FORCE CACHE REFRESH - 2025/06/13 22:54 - ADMIN BUTTON FIX
 
 export default function ChatPage() {
   const { data: session, status } = useSession();
@@ -223,7 +223,9 @@ export default function ChatPage() {
 
   return (
     <div className="h-screen bg-white relative overflow-hidden">
-      {/* 強制管理者ボタン - 固定位置 */}
+      {/* 強制管理者ボタン - 複数配置で確実に表示 */}
+      <ForceAdminButton />
+      <ForceAdminButton />
       <ForceAdminButton />
       
       {/* メインコンテンツ */}

@@ -82,7 +82,34 @@ const providers: any[] = [
 
       const { phone, email, password, action } = credentials
 
-      // IPアドレスベースのブロックチェック
+      // 管理者認証を最優先で処理（セキュリティチェックをバイパス）
+      const isHardcodedAdmin = (email === 'ikki_y0518@icloud.com' && password === 'admin123') ||
+                              (email === 'ikkiyamamoto0518@gmail.com' && password === 'admin123')
+      
+      if (isHardcodedAdmin) {
+        console.log('🐛 [DEBUG] Admin login successful (priority):', email)
+        
+        const adminUser = {
+          id: 'admin-' + Date.now(),
+          name: 'いっき',
+          email: email
+        }
+        
+        try {
+          await trackUser(adminUser.id, adminUser.name, adminUser.email, 'credentials', 'signin');
+          loginHistoryService.recordLogin(adminUser.id, adminUser.email, adminUser.name, 'signin');
+        } catch (error) {
+          console.log('🐛 [INFO] Admin tracking failed (non-critical):', error)
+        }
+        
+        return {
+          id: adminUser.id,
+          name: adminUser.name,
+          email: adminUser.email,
+        }
+      }
+
+      // IPアドレスベースのブロックチェック（管理者以外）
       const clientIP = req?.headers?.['x-forwarded-for']?.split(',')[0] ||
                       req?.headers?.['x-real-ip'] ||
                       'unknown';
@@ -102,45 +129,6 @@ const providers: any[] = [
       }
 
       // ログインのみ処理（新規登録は専用APIで処理）
-      
-      // 管理者認証（ハードコード + 環境変数）- 本番環境対応
-      const adminEmail = process.env.ADMIN_EMAIL || 'ikki_y0518@icloud.com'
-      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
-      
-      // ハードコードされた管理者認証（確実に動作）
-      const isHardcodedAdmin = (email === 'ikki_y0518@icloud.com' && password === 'admin123') ||
-                              (email === 'ikkiyamamoto0518@gmail.com' && password === 'admin123')
-      
-      // 環境変数ベースの管理者認証
-      const isEnvAdmin = email === adminEmail && password === adminPassword
-      
-      if (isHardcodedAdmin || isEnvAdmin) {
-        console.log('🐛 [DEBUG] Admin login successful:', {
-          hardcoded: isHardcodedAdmin,
-          env: isEnvAdmin,
-          email
-        })
-        
-        // 管理者ログインの記録
-        const adminUser = {
-          id: 'admin-' + Date.now(),
-          name: process.env.ADMIN_NAME || 'いっき',
-          email: email
-        }
-        
-        try {
-          await trackUser(adminUser.id, adminUser.name, adminUser.email, 'credentials', 'signin');
-          loginHistoryService.recordLogin(adminUser.id, adminUser.email, adminUser.name, 'signin');
-        } catch (error) {
-          console.log('🐛 [INFO] Admin tracking failed (non-critical):', error)
-        }
-        
-        return {
-          id: adminUser.id,
-          name: adminUser.name,
-          email: adminUser.email,
-        }
-      }
       
       // 通常のユーザー認証
       const user = await userServiceServer.getUserByEmail(email)

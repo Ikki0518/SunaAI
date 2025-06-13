@@ -12,11 +12,18 @@ export default function ChatPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  // 管理者権限チェック（ハードコード + 環境変数対応）
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'ikki_y0518@icloud.com'
-  const isAdmin = session?.user?.email === 'ikki_y0518@icloud.com' ||
-                  session?.user?.email === 'ikkiyamamoto0518@gmail.com' ||
-                  session?.user?.email === adminEmail;
+  // 管理者権限チェック（確実な判定）
+  const adminEmails = [
+    'ikki_y0518@icloud.com',
+    'ikkiyamamoto0518@gmail.com'
+  ];
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'ikki_y0518@icloud.com';
+  if (adminEmail && !adminEmails.includes(adminEmail)) {
+    adminEmails.push(adminEmail);
+  }
+  
+  const userEmail = session?.user?.email?.toLowerCase().trim();
+  const isAdmin = userEmail && adminEmails.some(email => email.toLowerCase().trim() === userEmail);
   
   // 本番環境でのデバッグ用：管理者ボタンの表示状態を画面に表示
   const showDebugInfo = true; // 本番環境でのテスト用
@@ -25,17 +32,22 @@ export default function ChatPage() {
   useEffect(() => {
     if (session?.user?.email) {
       console.log('🐛 [DEBUG] Current user email:', session.user.email);
+      console.log('🐛 [DEBUG] User email (processed):', userEmail);
+      console.log('🐛 [DEBUG] Admin emails array:', adminEmails);
       console.log('🐛 [DEBUG] Is admin:', isAdmin);
       console.log('🐛 [DEBUG] Admin email from env:', adminEmail);
       console.log('🐛 [DEBUG] Admin check details:', {
-        email: session.user.email,
-        isIkki: session.user.email === 'ikki_y0518@icloud.com',
-        isIkkiYamamoto: session.user.email === 'ikkiyamamoto0518@gmail.com',
-        isAdminEmail: session.user.email === adminEmail,
+        originalEmail: session.user.email,
+        processedEmail: userEmail,
+        adminEmails: adminEmails,
+        emailMatches: adminEmails.map(email => ({
+          adminEmail: email,
+          matches: email.toLowerCase().trim() === userEmail
+        })),
         finalIsAdmin: isAdmin
       });
     }
-  }, [session, isAdmin, adminEmail]);
+  }, [session, isAdmin, adminEmail, userEmail, adminEmails]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -219,12 +231,34 @@ export default function ChatPage() {
               <div className="flex items-center space-x-3">
                 {/* デバッグ情報表示（本番環境でのテスト用） */}
                 {showDebugInfo && session?.user?.email && (
-                  <div className="text-xs bg-yellow-100 border border-yellow-300 rounded px-2 py-1 mr-2">
-                    <div>Email: {session.user.email}</div>
-                    <div>Admin: {isAdmin ? 'YES' : 'NO'}</div>
+                  <div className="text-xs bg-yellow-100 border border-yellow-300 rounded px-3 py-2 mr-2 max-w-md">
+                    <div className="font-bold mb-1">🐛 DEBUG INFO</div>
+                    <div>Original: {session.user.email}</div>
+                    <div>Processed: {userEmail}</div>
+                    <div>Admin Emails: {adminEmails.join(', ')}</div>
+                    <div className={`font-bold ${isAdmin ? 'text-green-600' : 'text-red-600'}`}>
+                      Admin: {isAdmin ? 'YES ✅' : 'NO ❌'}
+                    </div>
+                    <div className="text-xs mt-1">
+                      Matches: {adminEmails.map(email =>
+                        `${email}=${email.toLowerCase().trim() === userEmail ? '✅' : '❌'}`
+                      ).join(' ')}
+                    </div>
+                    {/* 緊急アクセス用リンク */}
+                    {adminEmails.includes(userEmail || '') && (
+                      <div className="mt-2 pt-2 border-t border-yellow-400">
+                        <button
+                          onClick={() => router.push('/admin')}
+                          className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600"
+                        >
+                          🚨 緊急管理者アクセス
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
-                {isAdmin && (
+                {/* 管理者ボタン - 強化された条件チェック */}
+                {(isAdmin || (session?.user?.email && adminEmails.includes(session.user.email.toLowerCase().trim()))) && (
                   <div className="relative admin-dropdown">
                     <button
                       onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}

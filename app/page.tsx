@@ -15,12 +15,15 @@ export default function ChatPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  // 管理者権限チェック（強制的に表示）
+  // 管理者権限チェック（複数の方法で確認）
   const userEmail = session?.user?.email?.toLowerCase().trim();
-  const isAdmin = userEmail === 'ikki_y0518@icloud.com' || userEmail === 'ikkiyamamoto0518@gmail.com';
+  const isAdminByEmail = userEmail === 'ikki_y0518@icloud.com' || userEmail === 'ikkiyamamoto0518@gmail.com';
+  const isAdminBySession = (session?.user as any)?.isAdmin === true || (session?.user as any)?.role === 'admin';
+  const isAdminById = session?.user?.id?.startsWith('admin-');
+  const isAdmin = isAdminByEmail || isAdminBySession || isAdminById;
   
-  // 強制的に管理者ボタンを表示（テスト用）
-  const forceShowAdminButton = session?.user?.email === 'ikki_y0518@icloud.com';
+  // 強制的に管理者ボタンを表示（複数条件）
+  const forceShowAdminButton = isAdmin || session?.user?.email === 'ikki_y0518@icloud.com';
   
   // 本番環境でのデバッグ用：管理者ボタンの表示状態を画面に表示
   const showDebugInfo = true; // 本番環境でのテスト用
@@ -30,16 +33,25 @@ export default function ChatPage() {
     if (session?.user?.email) {
       console.log('🐛 [DEBUG] Current user email:', session.user.email);
       console.log('🐛 [DEBUG] User email (processed):', userEmail);
-      console.log('🐛 [DEBUG] Is admin:', isAdmin);
-      console.log('🐛 [DEBUG] Force show admin button:', forceShowAdminButton);
-      console.log('🐛 [DEBUG] Admin check details:', {
+      console.log('🐛 [DEBUG] User ID:', session.user.id);
+      console.log('🐛 [DEBUG] Full session user:', session.user);
+      console.log('🐛 [DEBUG] Admin checks:', {
+        isAdminByEmail,
+        isAdminBySession,
+        isAdminById,
+        isAdmin,
+        forceShowAdminButton
+      });
+      console.log('🐛 [DEBUG] Session details:', {
         originalEmail: session.user.email,
         processedEmail: userEmail,
-        isAdmin: isAdmin,
-        forceShowAdminButton: forceShowAdminButton
+        userId: session.user.id,
+        userIdStartsWithAdmin: session.user.id?.startsWith('admin-'),
+        sessionUserIsAdmin: (session.user as any)?.isAdmin,
+        sessionUserRole: (session.user as any)?.role
       });
     }
-  }, [session, isAdmin, userEmail, forceShowAdminButton]);
+  }, [session, isAdmin, userEmail, forceShowAdminButton, isAdminByEmail, isAdminBySession, isAdminById]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);

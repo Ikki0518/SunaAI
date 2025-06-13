@@ -91,8 +91,8 @@ const providers: any[] = [
       const { phone, email, password, action } = credentials
 
       // 管理者認証を最優先で処理（セキュリティチェックをバイパス）
-      const isHardcodedAdmin = (email === 'ikki_y0518@icloud.com' && password === 'admin123') ||
-                              (email === 'ikkiyamamoto0518@gmail.com' && password === 'admin123')
+      const isHardcodedAdmin = (email === 'ikki_y0518@icloud.com' && password === 'ikki0518') ||
+                              (email === 'ikkiyamamoto0518@gmail.com' && password === 'ikki0518')
       
       console.log('🐛 [AUTH] Admin check:', {
         email,
@@ -108,7 +108,9 @@ const providers: any[] = [
         const adminUser = {
           id: 'admin-' + Date.now(),
           name: 'いっき',
-          email: email
+          email: email,
+          isAdmin: true,
+          role: 'admin'
         }
         
         try {
@@ -122,6 +124,8 @@ const providers: any[] = [
           id: adminUser.id,
           name: adminUser.name,
           email: adminUser.email,
+          isAdmin: true,
+          role: 'admin'
         }
       }
 

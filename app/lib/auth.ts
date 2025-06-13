@@ -91,15 +91,15 @@ const providers: any[] = [
       const { phone, email, password, action } = credentials
 
       // 管理者認証を最優先で処理（セキュリティチェックをバイパス）
-      const isHardcodedAdmin = (email === 'ikki_y0518@icloud.com' && password === 'ikki0518') ||
-                              (email === 'ikkiyamamoto0518@gmail.com' && password === 'ikki0518')
+      const isHardcodedAdmin = (email === 'ikki_y0518@icloud.com' && password === 'admin123') ||
+                              (email === 'ikkiyamamoto0518@gmail.com' && password === 'admin123')
       
       console.log('🐛 [AUTH] Admin check:', {
         email,
         isHardcodedAdmin,
         emailMatch1: email === 'ikki_y0518@icloud.com',
         emailMatch2: email === 'ikkiyamamoto0518@gmail.com',
-        passwordMatch: password === 'ikki0518'
+        passwordMatch: password === 'admin123'
       });
       
       if (isHardcodedAdmin) {

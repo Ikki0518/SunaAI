@@ -101,8 +101,30 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!session || !isAdmin) {
+  // 管理者権限チェックを緩和（既存ユーザーアカウント対応）
+  const currentUserEmail = session?.user?.email?.toLowerCase().trim();
+  const isAdminUser = currentUserEmail === 'ikki_y0518@icloud.com' || currentUserEmail === 'ikkiyamamoto0518@gmail.com';
+  
+  if (!session) {
     return null;
+  }
+  
+  if (!isAdminUser) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">アクセス拒否</h1>
+          <p className="text-gray-600 mb-4">管理者権限が必要です</p>
+          <p className="text-sm text-gray-500">ユーザー: {session.user?.email}</p>
+          <button
+            onClick={() => router.push('/')}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            チャット画面に戻る
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

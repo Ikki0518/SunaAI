@@ -95,19 +95,24 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (status === 'loading') return;
     
-    if (!session || !isAdmin) {
-      console.log('🐛 [ADMIN DASHBOARD] Access denied:', {
-        hasSession: !!session,
-        userEmail: session?.user?.email,
-        isAdmin: isAdmin
-      });
+    if (!session) {
+      router.push('/auth/signin');
+      return;
+    }
+
+    // 管理者権限チェック（既存ユーザーアカウント対応）
+    const userEmail = session.user?.email?.toLowerCase().trim();
+    const isAdminUser = userEmail === 'ikki_y0518@icloud.com' || userEmail === 'ikkiyamamoto0518@gmail.com';
+    
+    if (!isAdminUser) {
+      console.log('🐛 [ADMIN DASHBOARD] Access denied for:', userEmail);
       router.push('/');
       return;
     }
 
-    console.log('🐛 [ADMIN DASHBOARD] Admin access granted');
+    console.log('🐛 [ADMIN DASHBOARD] Admin access granted for:', userEmail);
     fetchDashboardData();
-  }, [session, status, isAdmin, router]);
+  }, [session, status, router]);
 
   const fetchDashboardData = async () => {
     try {

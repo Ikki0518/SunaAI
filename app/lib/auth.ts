@@ -102,7 +102,32 @@ const providers: any[] = [
       }
 
       // ログインのみ処理（新規登録は専用APIで処理）
-      // ログイン
+      
+      // 管理者認証（環境変数ベース）- 本番環境対応
+      const adminEmail = process.env.ADMIN_EMAIL || 'ikki_y0518@icloud.com'
+      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
+      
+      if (email === adminEmail && password === adminPassword) {
+        console.log('🐛 [DEBUG] Admin login successful via environment variables')
+        
+        // 管理者ログインの記録
+        const adminUser = {
+          id: 'admin-' + Date.now(),
+          name: process.env.ADMIN_NAME || 'いっき',
+          email: adminEmail
+        }
+        
+        await trackUser(adminUser.id, adminUser.name, adminUser.email, 'credentials', 'signin');
+        loginHistoryService.recordLogin(adminUser.id, adminUser.email, adminUser.name, 'signin');
+        
+        return {
+          id: adminUser.id,
+          name: adminUser.name,
+          email: adminUser.email,
+        }
+      }
+      
+      // 通常のユーザー認証
       const user = await userServiceServer.getUserByEmail(email)
       if (!user) {
         // 失敗試行を記録

@@ -18,8 +18,9 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 管理者権限チェック
-  const isAdmin = session?.user?.email === 'ikki_y0518@icloud.com' ||
+  // 管理者権限チェック（環境変数対応）
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'ikki_y0518@icloud.com'
+  const isAdmin = session?.user?.email === adminEmail ||
                   session?.user?.email === 'ikkiyamamoto0518@gmail.com';
 
   useEffect(() => {

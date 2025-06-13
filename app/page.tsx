@@ -12,18 +12,12 @@ export default function ChatPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  // 管理者権限チェック（確実な判定）
-  const adminEmails = [
-    'ikki_y0518@icloud.com',
-    'ikkiyamamoto0518@gmail.com'
-  ];
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'ikki_y0518@icloud.com';
-  if (adminEmail && !adminEmails.includes(adminEmail)) {
-    adminEmails.push(adminEmail);
-  }
-  
+  // 管理者権限チェック（強制的に表示）
   const userEmail = session?.user?.email?.toLowerCase().trim();
-  const isAdmin = userEmail && adminEmails.some(email => email.toLowerCase().trim() === userEmail);
+  const isAdmin = userEmail === 'ikki_y0518@icloud.com' || userEmail === 'ikkiyamamoto0518@gmail.com';
+  
+  // 強制的に管理者ボタンを表示（テスト用）
+  const forceShowAdminButton = session?.user?.email === 'ikki_y0518@icloud.com';
   
   // 本番環境でのデバッグ用：管理者ボタンの表示状態を画面に表示
   const showDebugInfo = true; // 本番環境でのテスト用
@@ -33,21 +27,16 @@ export default function ChatPage() {
     if (session?.user?.email) {
       console.log('🐛 [DEBUG] Current user email:', session.user.email);
       console.log('🐛 [DEBUG] User email (processed):', userEmail);
-      console.log('🐛 [DEBUG] Admin emails array:', adminEmails);
       console.log('🐛 [DEBUG] Is admin:', isAdmin);
-      console.log('🐛 [DEBUG] Admin email from env:', adminEmail);
+      console.log('🐛 [DEBUG] Force show admin button:', forceShowAdminButton);
       console.log('🐛 [DEBUG] Admin check details:', {
         originalEmail: session.user.email,
         processedEmail: userEmail,
-        adminEmails: adminEmails,
-        emailMatches: adminEmails.map(email => ({
-          adminEmail: email,
-          matches: email.toLowerCase().trim() === userEmail
-        })),
-        finalIsAdmin: isAdmin
+        isAdmin: isAdmin,
+        forceShowAdminButton: forceShowAdminButton
       });
     }
-  }, [session, isAdmin, adminEmail, userEmail, adminEmails]);
+  }, [session, isAdmin, userEmail, forceShowAdminButton]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -265,17 +254,14 @@ export default function ChatPage() {
                     <div className="font-bold mb-1">🐛 DEBUG INFO</div>
                     <div>Original: {session.user.email}</div>
                     <div>Processed: {userEmail}</div>
-                    <div>Admin Emails: {adminEmails.join(', ')}</div>
                     <div className={`font-bold ${isAdmin ? 'text-green-600' : 'text-red-600'}`}>
                       Admin: {isAdmin ? 'YES ✅' : 'NO ❌'}
                     </div>
-                    <div className="text-xs mt-1">
-                      Matches: {adminEmails.map(email =>
-                        `${email}=${email.toLowerCase().trim() === userEmail ? '✅' : '❌'}`
-                      ).join(' ')}
+                    <div className={`font-bold ${forceShowAdminButton ? 'text-green-600' : 'text-red-600'}`}>
+                      Force Show: {forceShowAdminButton ? 'YES ✅' : 'NO ❌'}
                     </div>
                     {/* 緊急アクセス用リンク */}
-                    {adminEmails.includes(userEmail || '') && (
+                    {forceShowAdminButton && (
                       <div className="mt-2 pt-2 border-t border-yellow-400">
                         <button
                           onClick={() => checkAdminAccess('/admin')}

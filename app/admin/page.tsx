@@ -18,22 +18,43 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 管理者権限チェック（ハードコード + 環境変数対応）
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'ikki_y0518@icloud.com'
-  const isAdmin = session?.user?.email === 'ikki_y0518@icloud.com' ||
-                  session?.user?.email === 'ikkiyamamoto0518@gmail.com' ||
-                  session?.user?.email === adminEmail;
+  // 管理者権限チェック（確実な判定）
+  const adminEmails = [
+    'ikki_y0518@icloud.com',
+    'ikkiyamamoto0518@gmail.com'
+  ];
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'ikki_y0518@icloud.com';
+  if (adminEmail && !adminEmails.includes(adminEmail)) {
+    adminEmails.push(adminEmail);
+  }
+  
+  const userEmail = session?.user?.email?.toLowerCase().trim();
+  const isAdmin = userEmail && adminEmails.some(email => email.toLowerCase().trim() === userEmail);
+
+  // デバッグ情報
+  useEffect(() => {
+    if (session?.user?.email) {
+      console.log('🐛 [ADMIN PAGE] Current user email:', session.user.email);
+      console.log('🐛 [ADMIN PAGE] User email (processed):', userEmail);
+      console.log('🐛 [ADMIN PAGE] Admin emails array:', adminEmails);
+      console.log('🐛 [ADMIN PAGE] Is admin:', isAdmin);
+    }
+  }, [session, userEmail, adminEmails, isAdmin]);
 
   useEffect(() => {
     if (status === "loading") return;
     if (!session) {
+      console.log('🐛 [ADMIN PAGE] No session, redirecting to signin');
       router.push('/auth/signin');
       return;
     }
     if (!isAdmin) {
+      console.log('🐛 [ADMIN PAGE] Not admin, redirecting to home');
+      alert(`アクセス拒否: ${session.user?.email} は管理者権限がありません`);
       router.push('/');
       return;
     }
+    console.log('🐛 [ADMIN PAGE] Admin access granted');
   }, [session, status, isAdmin, router]);
 
   // 統計データを取得

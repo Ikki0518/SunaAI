@@ -323,15 +323,15 @@ export default function ChatPage() {
                     )}
                   </div>
                 )}
-                <UserMenu />
-                {/* 直接管理者アクセスリンク（確実な方法） */}
+                {/* 直接管理者アクセスリンク（確実な方法） - より目立つ位置 */}
                 <a
-                  href="/admin-access"
-                  className="ml-2 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
-                  title="管理者アクセス（テスト用）"
+                  href="/admin"
+                  className="mr-3 px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 transition-colors shadow-lg"
+                  title="管理者ダッシュボード"
                 >
-                  ADMIN
+                  🔧 ADMIN
                 </a>
+                <UserMenu />
               </div>
             </div>
           </div>

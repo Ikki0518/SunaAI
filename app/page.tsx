@@ -12,10 +12,11 @@ export default function ChatPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  // 管理者権限チェック（環境変数対応）
+  // 管理者権限チェック（ハードコード + 環境変数対応）
   const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'ikki_y0518@icloud.com'
-  const isAdmin = session?.user?.email === adminEmail ||
-                  session?.user?.email === 'ikkiyamamoto0518@gmail.com';
+  const isAdmin = session?.user?.email === 'ikki_y0518@icloud.com' ||
+                  session?.user?.email === 'ikkiyamamoto0518@gmail.com' ||
+                  session?.user?.email === adminEmail;
   
   // デバッグ情報
   useEffect(() => {

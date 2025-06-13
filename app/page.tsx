@@ -323,13 +323,14 @@ export default function ChatPage() {
                     )}
                   </div>
                 )}
-                {/* 直接管理者アクセスリンク（確実な方法） - より目立つ位置 */}
+                {/* 右上管理者ボタン - 絶対表示 */}
                 <a
                   href="/admin"
-                  className="mr-3 px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 transition-colors shadow-lg"
+                  className="mr-3 px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors shadow-xl border-2 border-red-800"
                   title="管理者ダッシュボード"
+                  style={{ zIndex: 9999 }}
                 >
-                  🔧 ADMIN
+                  🔧 管理者サイト
                 </a>
                 <UserMenu />
               </div>

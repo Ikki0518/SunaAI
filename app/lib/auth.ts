@@ -99,7 +99,7 @@ const providers: any[] = [
         isHardcodedAdmin,
         emailMatch1: email === 'ikki_y0518@icloud.com',
         emailMatch2: email === 'ikkiyamamoto0518@gmail.com',
-        passwordMatch: password === 'admin123'
+        passwordMatch: password === 'ikki0518'
       });
       
       if (isHardcodedAdmin) {

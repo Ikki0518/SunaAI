@@ -18,19 +18,24 @@ export default function ChatPage() {
                   session?.user?.email === 'ikkiyamamoto0518@gmail.com' ||
                   session?.user?.email === adminEmail;
   
-  // デバッグ情報
+  // 本番環境でのデバッグ用：管理者ボタンの表示状態を画面に表示
+  const showDebugInfo = true; // 本番環境でのテスト用
+  
+  // デバッグ情報（本番環境でも表示）
   useEffect(() => {
     if (session?.user?.email) {
       console.log('🐛 [DEBUG] Current user email:', session.user.email);
       console.log('🐛 [DEBUG] Is admin:', isAdmin);
+      console.log('🐛 [DEBUG] Admin email from env:', adminEmail);
       console.log('🐛 [DEBUG] Admin check details:', {
         email: session.user.email,
         isIkki: session.user.email === 'ikki_y0518@icloud.com',
         isIkkiYamamoto: session.user.email === 'ikkiyamamoto0518@gmail.com',
+        isAdminEmail: session.user.email === adminEmail,
         finalIsAdmin: isAdmin
       });
     }
-  }, [session, isAdmin]);
+  }, [session, isAdmin, adminEmail]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -212,6 +217,13 @@ export default function ChatPage() {
                 </div>
               </div>
               <div className="flex items-center space-x-3">
+                {/* デバッグ情報表示（本番環境でのテスト用） */}
+                {showDebugInfo && session?.user?.email && (
+                  <div className="text-xs bg-yellow-100 border border-yellow-300 rounded px-2 py-1 mr-2">
+                    <div>Email: {session.user.email}</div>
+                    <div>Admin: {isAdmin ? 'YES' : 'NO'}</div>
+                  </div>
+                )}
                 {isAdmin && (
                   <div className="relative admin-dropdown">
                     <button

@@ -50,12 +50,19 @@ export default function AdminDashboard() {
     }
     if (!isAdmin) {
       console.log('🐛 [ADMIN PAGE] Not admin, redirecting to home');
+      console.log('🐛 [ADMIN PAGE] User email:', session.user?.email);
+      console.log('🐛 [ADMIN PAGE] Admin check details:', {
+        email: session.user?.email,
+        processedEmail: userEmail,
+        adminEmails: adminEmails,
+        isAdmin: isAdmin
+      });
       alert(`アクセス拒否: ${session.user?.email} は管理者権限がありません`);
       router.push('/');
       return;
     }
     console.log('🐛 [ADMIN PAGE] Admin access granted');
-  }, [session, status, isAdmin, router]);
+  }, [session, status, isAdmin, router, userEmail, adminEmails]);
 
   // 統計データを取得
   useEffect(() => {

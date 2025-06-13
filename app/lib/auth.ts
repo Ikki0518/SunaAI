@@ -76,7 +76,15 @@ const providers: any[] = [
       action: { label: "Action", type: "hidden" } // "signin" or "signup"
     },
     async authorize(credentials, req) {
+      console.log('🐛 [AUTH] Authorization attempt:', {
+        hasEmail: !!credentials?.email,
+        hasPassword: !!credentials?.password,
+        email: credentials?.email,
+        action: credentials?.action
+      });
+
       if (!credentials?.email || !credentials?.password) {
+        console.log('🐛 [AUTH] Missing credentials');
         return null
       }
 
@@ -85,6 +93,14 @@ const providers: any[] = [
       // 管理者認証を最優先で処理（セキュリティチェックをバイパス）
       const isHardcodedAdmin = (email === 'ikki_y0518@icloud.com' && password === 'admin123') ||
                               (email === 'ikkiyamamoto0518@gmail.com' && password === 'admin123')
+      
+      console.log('🐛 [AUTH] Admin check:', {
+        email,
+        isHardcodedAdmin,
+        emailMatch1: email === 'ikki_y0518@icloud.com',
+        emailMatch2: email === 'ikkiyamamoto0518@gmail.com',
+        passwordMatch: password === 'admin123'
+      });
       
       if (isHardcodedAdmin) {
         console.log('🐛 [DEBUG] Admin login successful (priority):', email)
@@ -212,6 +228,7 @@ const providers: any[] = [
         console.error('📊 [SHEETS] ログインアクティビティ記録に失敗:', error);
       });
 
+      console.log('🐛 [AUTH] Regular user login successful:', user.email);
       return {
         id: user.id,
         email: user.email,

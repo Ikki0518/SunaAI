@@ -96,10 +96,16 @@ export default function AdminDashboard() {
     if (status === 'loading') return;
     
     if (!session || !isAdmin) {
+      console.log('🐛 [ADMIN DASHBOARD] Access denied:', {
+        hasSession: !!session,
+        userEmail: session?.user?.email,
+        isAdmin: isAdmin
+      });
       router.push('/');
       return;
     }
 
+    console.log('🐛 [ADMIN DASHBOARD] Admin access granted');
     fetchDashboardData();
   }, [session, status, isAdmin, router]);
 

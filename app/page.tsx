@@ -100,6 +100,24 @@ export default function ChatPage() {
     };
   }, [adminDropdownOpen]);
 
+  // 管理者権限チェック関数
+  const checkAdminAccess = useCallback((targetPath: string) => {
+    if (!session?.user?.email) {
+      alert('ログインが必要です');
+      return;
+    }
+    
+    const userEmail = session.user.email.toLowerCase().trim();
+    const adminEmails = ['ikki_y0518@icloud.com', 'ikkiyamamoto0518@gmail.com'];
+    
+    if (adminEmails.includes(userEmail)) {
+      router.push(targetPath);
+      setAdminDropdownOpen(false);
+    } else {
+      alert('管理者権限が必要です。このアカウントでは管理者機能にアクセスできません。');
+    }
+  }, [session, router]);
+
   // セッション保存
   const saveCurrentSession = useCallback(() => {
     if (!mounted || !currentSession || messages.length === 0) return;
@@ -248,7 +266,7 @@ export default function ChatPage() {
                     {adminEmails.includes(userEmail || '') && (
                       <div className="mt-2 pt-2 border-t border-yellow-400">
                         <button
-                          onClick={() => router.push('/admin')}
+                          onClick={() => checkAdminAccess('/admin')}
                           className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600"
                         >
                           🚨 緊急管理者アクセス
@@ -257,8 +275,8 @@ export default function ChatPage() {
                     )}
                   </div>
                 )}
-                {/* 管理者ボタン - 強化された条件チェック */}
-                {(isAdmin || (session?.user?.email && adminEmails.includes(session.user.email.toLowerCase().trim()))) && (
+                {/* 管理者ボタン - 常に表示（ログイン済みユーザーのみ） */}
+                {session?.user?.email && (
                   <div className="relative admin-dropdown">
                     <button
                       onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}
@@ -277,10 +295,7 @@ export default function ChatPage() {
                     {adminDropdownOpen && (
                       <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
                         <button
-                          onClick={() => {
-                            router.push('/admin');
-                            setAdminDropdownOpen(false);
-                          }}
+                          onClick={() => checkAdminAccess('/admin')}
                           className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3"
                         >
                           <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -292,10 +307,7 @@ export default function ChatPage() {
                           </div>
                         </button>
                         <button
-                          onClick={() => {
-                            router.push('/admin/dashboard');
-                            setAdminDropdownOpen(false);
-                          }}
+                          onClick={() => checkAdminAccess('/admin/dashboard')}
                           className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3"
                         >
                           <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -237,6 +237,18 @@ export default function ChatPage() {
           sidebarOpen ? 'ml-80' : 'ml-16'
         }`}
       >
+        {/* 最上部管理者アクセスバー */}
+        {session?.user?.email && (
+          <div className="bg-yellow-400 text-black px-6 py-2 text-center font-bold">
+            🚨 管理者テスト中: {session.user.email}
+            <a
+              href="/admin"
+              className="ml-4 px-4 py-1 bg-black text-yellow-400 rounded hover:bg-gray-800 transition-colors"
+            >
+              管理者ダッシュボード
+            </a>
+          </div>
+        )}
         {/* ヘッダー */}
         <div className="sticky top-0 z-[60] bg-white border-b border-gray-100">
           <div className="px-6 py-4">
@@ -339,6 +351,22 @@ export default function ChatPage() {
 
         {/* チャットエリア */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* 緊急管理者アクセスバー */}
+          {session?.user?.email && (
+            <div className="bg-red-100 border-b border-red-200 px-6 py-3">
+              <div className="flex items-center justify-between">
+                <div className="text-red-700 text-sm">
+                  🚨 管理者機能テスト中 - ユーザー: {session.user.email}
+                </div>
+                <a
+                  href="/admin"
+                  className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors shadow-lg"
+                >
+                  🔧 管理者ダッシュボード
+                </a>
+              </div>
+            </div>
+          )}
           {/* メッセージエリア */}
           <div className="flex-1 overflow-y-auto">
             {messages.length === 0 ? (

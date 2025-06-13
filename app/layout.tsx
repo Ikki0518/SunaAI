@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Dancing_Script } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "./providers/AuthProvider";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import ForceAdminButton from "./components/ForceAdminButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,8 @@ export default function RootLayout({
       >
         <AuthProvider>
           <ThemeProvider>
+            {/* 全ページで管理者ボタンを表示 */}
+            <ForceAdminButton />
             {children}
           </ThemeProvider>
         </AuthProvider>

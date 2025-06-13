@@ -8,10 +8,13 @@ export default function SignIn() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
+  const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
+  const [registrationSuccess, setRegistrationSuccess] = useState(false)
+  const [justRegistered, setJustRegistered] = useState(false)
 
   useEffect(() => {
     // 既にログインしている場合はリダイレクト
@@ -26,40 +29,94 @@ export default function SignIn() {
     e.preventDefault()
     setError("")
     
-    if (!email || !password) {
-      setError("メールアドレスとパスワードを入力してください")
-      return
-    }
-
-    if (isSignUp && password !== confirmPassword) {
-      setError("パスワードが一致しません")
-      return
-    }
-
-    if (password.length < 6) {
-      setError("パスワードは6文字以上で入力してください")
-      return
-    }
-
-    setLoading(true)
-    
-    try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        action: isSignUp ? 'signup' : 'signin',
-        redirect: false,
-      })
-
-      if (result?.error) {
-        setError(result.error)
-      } else if (result?.ok) {
-        router.push('/')
+    if (isSignUp) {
+      // 新規登録の場合
+      if (!phone || !email || !password) {
+        setError("電話番号、メールアドレス、パスワードを入力してください")
+        return
       }
-    } catch (error) {
-      setError("ログインエラーが発生しました")
-    } finally {
-      setLoading(false)
+
+      if (password !== confirmPassword) {
+        setError("パスワードが一致しません")
+        return
+      }
+
+      if (password.length < 6) {
+        setError("パスワードは6文字以上で入力してください")
+        return
+      }
+
+      setLoading(true)
+      
+      try {
+        // 新規登録専用APIを使用
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            phone,
+            email,
+            password,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (response.ok) {
+          // 新規登録成功
+          setRegistrationSuccess(true)
+          setJustRegistered(true)
+          setIsSignUp(false)
+          setPhone("")
+          setEmail("")
+          setPassword("")
+          setConfirmPassword("")
+        } else {
+          setError(data.error || "新規登録エラーが発生しました")
+        }
+      } catch (error) {
+        setError("新規登録エラーが発生しました")
+      } finally {
+        setLoading(false)
+      }
+    } else {
+      // ログインの場合
+      if (!email || !password) {
+        setError("メールアドレスとパスワードを入力してください")
+        return
+      }
+
+      if (password.length < 6) {
+        setError("パスワードは6文字以上で入力してください")
+        return
+      }
+
+      setLoading(true)
+      
+      try {
+        const result = await signIn('credentials', {
+          email,
+          password,
+          action: 'signin',
+          redirect: false,
+        })
+
+        if (result?.error) {
+          setError(result.error)
+        } else if (result?.ok) {
+          // 新規登録直後でも通常ログインでも、成功したらチャット画面に移動
+          setJustRegistered(false)
+          setRegistrationSuccess(false)
+          setError("")
+          router.push('/')
+        }
+      } catch (error) {
+        setError("ログインエラーが発生しました")
+      } finally {
+        setLoading(false)
+      }
     }
   }
 
@@ -88,6 +145,13 @@ export default function SignIn() {
             </p>
           </div>
 
+          {/* Success Message */}
+          {registrationSuccess && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">
+              新規登録が完了しました！メールアドレスとパスワードでログインしてください。
+            </div>
+          )}
+
           {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
@@ -111,6 +175,23 @@ export default function SignIn() {
                 required
               />
             </div>
+
+            {isSignUp && (
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                  電話番号
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50"
+                  placeholder="090-1234-5678"
+                  required
+                />
+              </div>
+            )}
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
@@ -188,6 +269,9 @@ export default function SignIn() {
               onClick={() => {
                 setIsSignUp(!isSignUp)
                 setError("")
+                setRegistrationSuccess(false)
+                setJustRegistered(false)
+                setPhone("")
                 setEmail("")
                 setPassword("")
                 setConfirmPassword("")

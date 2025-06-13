@@ -1,0 +1,74 @@
+[
+  {
+    "userId": "1749359762623",
+    "email": "ikki_y0518@icloud.com",
+    "name": "いっき",
+    "action": "signup",
+    "timestamp": "2025-06-08T14:16:02.623Z",
+    "date": "2025-06-08"
+  },
+  {
+    "userId": "1749360139874",
+    "email": "ikkiyamamoto0518@gmail.com",
+    "name": "ikkiyamamoto0518",
+    "action": "signup",
+    "timestamp": "2025-06-08T14:22:19.874Z",
+    "date": "2025-06-08"
+  },
+  {
+    "userId": "1749791061255",
+    "email": "simpledog.1425@gmail.com",
+    "name": "simpledog.1425",
+    "action": "signup",
+    "timestamp": "2025-06-13T14:04:21.255Z",
+    "date": "2025-06-13"
+  },
+  {
+    "userId": "1749359762623",
+    "email": "ikki_y0518@icloud.com",
+    "name": "いっき",
+    "action": "signin",
+    "timestamp": "2025-06-13T14:11:59.000Z",
+    "date": "2025-06-13"
+  },
+  {
+    "userId": "1749359762623",
+    "email": "ikki_y0518@icloud.com",
+    "name": "いっき",
+    "action": "signin",
+    "timestamp": "2025-06-13T05:18:57.600Z",
+    "date": "2025-06-13"
+  },
+  {
+    "userId": "1749359762623",
+    "email": "ikki_y0518@icloud.com",
+    "name": "いっき",
+    "action": "signin",
+    "timestamp": "2025-06-13T05:20:44.375Z",
+    "date": "2025-06-13"
+  },
+  {
+    "userId": "1749359762623",
+    "email": "ikki_y0518@icloud.com",
+    "name": "いっき",
+    "action": "signin",
+    "timestamp": "2025-06-13T05:22:55.320Z",
+    "date": "2025-06-13"
+  },
+  {
+    "userId": "1749359762623",
+    "email": "ikki_y0518@icloud.com",
+    "name": "いっき",
+    "action": "signin",
+    "timestamp": "2025-06-13T05:58:52.666Z",
+    "date": "2025-06-13"
+  },
+  {
+    "userId": "1749359762623",
+    "email": "ikki_y0518@icloud.com",
+    "name": "いっき",
+    "action": "signin",
+    "timestamp": "2025-06-13T06:01:37.958Z",
+    "date": "2025-06-13"
+  }
+]

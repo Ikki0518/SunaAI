@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // データを追加
-    await sheet.addRow({
+    const rowData = {
       'ID': Date.now().toString(),
       'ユーザーID': body.userId,
       '名前': body.name,
@@ -77,7 +77,19 @@ export async function POST(request: NextRequest) {
       '日時': body.timestamp,
       'User Agent': body.userAgent || '',
       '画像URL': body.image || ''
-    });
+    };
+
+    await sheet.addRow(rowData);
+
+    // 新規登録の場合は特別なログを出力
+    if (body.action === 'signup') {
+      console.log('🆕 [SHEETS] 新規登録をGoogle Sheetsに記録しました:', {
+        name: body.name,
+        email: body.email,
+        provider: body.provider,
+        timestamp: body.timestamp
+      });
+    }
 
     return NextResponse.json({ success: true });
 

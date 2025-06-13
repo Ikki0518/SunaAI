@@ -61,8 +61,23 @@ class UserServiceServer {
     return users.find(user => user.email === email) || null;
   }
 
+  async getUserByPhone(phone: string): Promise<User | null> {
+    const users = this.getUsers();
+    return users.find(user => user.phone === phone) || null;
+  }
+
+  async getUserById(userId: string): Promise<User | null> {
+    const users = this.getUsers();
+    return users.find(user => user.id === userId) || null;
+  }
+
   async createUser(userData: CreateUserData): Promise<User> {
     const users = this.getUsers();
+    
+    // 電話番号の重複チェック
+    if (users.some(user => user.phone === userData.phone)) {
+      throw new Error('この電話番号は既に登録されています');
+    }
     
     // メールアドレスの重複チェック
     if (users.some(user => user.email === userData.email)) {
@@ -121,6 +136,23 @@ class UserServiceServer {
     } catch (error) {
       console.error('ユーザーデータのクリアエラー:', error);
     }
+  }
+
+  // 管理者以外のユーザーをリセット
+  async resetAllUsers(): Promise<{ deletedCount: number; remainingUsers: User[] }> {
+    const users = this.getUsers();
+    const adminEmails = ['ikkiyamamoto0518@gmail.com', 'ikki_y0518@icloud.com'];
+    
+    // 管理者以外のユーザーを削除
+    const remainingUsers = users.filter(user => adminEmails.includes(user.email));
+    const deletedCount = users.length - remainingUsers.length;
+    
+    this.saveUsers(remainingUsers);
+    
+    return {
+      deletedCount,
+      remainingUsers
+    };
   }
 }
 

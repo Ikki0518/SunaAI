@@ -2,6 +2,16 @@ import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { userServiceServer } from "./userServiceServer"
+import { logSecurityEvent } from "@/app/api/admin/security-events/route"
+import {
+  recordFailedAttempt,
+  resetFailedAttempts,
+  isBlocked,
+  checkPasswordStrength
+} from "./security"
+import { notifyNewUserRegistration } from "./emailNotification"
+import { googleSheetsService } from "./googleSheets"
+import { loginHistoryService } from "./loginHistoryService"
 
 // 環境変数チェック関数
 function getEnvVar(key: string, fallback?: string): string {
@@ -60,62 +70,127 @@ const providers: any[] = [
   CredentialsProvider({
     name: "credentials",
     credentials: {
+      phone: { label: "Phone", type: "tel" },
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
       action: { label: "Action", type: "hidden" } // "signin" or "signup"
     },
-    async authorize(credentials) {
+    async authorize(credentials, req) {
       if (!credentials?.email || !credentials?.password) {
         return null
       }
 
-      const { email, password, action } = credentials
+      const { phone, email, password, action } = credentials
 
-      if (action === "signup") {
-        // 新規登録
-        const existingUser = await userServiceServer.getUserByEmail(email)
-        if (existingUser) {
-          throw new Error("このメールアドレスは既に登録されています")
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 12)
-        const user = await userServiceServer.createUser({
+      // IPアドレスベースのブロックチェック
+      const clientIP = req?.headers?.['x-forwarded-for']?.split(',')[0] ||
+                      req?.headers?.['x-real-ip'] ||
+                      'unknown';
+      
+      const blockStatus = isBlocked(email);
+      if (blockStatus.blocked) {
+        await logSecurityEvent(
+          'account_locked',
           email,
-          password: hashedPassword,
-          name: email.split("@")[0], // メールの@より前を名前とする
-        })
+          `アカウントが一時的にブロックされています (${new Date(blockStatus.blockUntil!).toLocaleString('ja-JP')})`,
+          {
+            ipAddress: clientIP,
+            severity: 'high'
+          }
+        );
+        throw new Error("アカウントが一時的にブロックされています。しばらく時間をおいてから再試行してください。");
+      }
 
-        // 新規登録の記録
-        await trackUser(user.id, user.name, user.email, 'credentials', 'signup');
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
+      // ログインのみ処理（新規登録は専用APIで処理）
+      // ログイン
+      const user = await userServiceServer.getUserByEmail(email)
+      if (!user) {
+        // 失敗試行を記録
+        const failedAttempt = recordFailedAttempt(email);
+        
+        // セキュリティイベント: 存在しないユーザーでのログイン試行
+        await logSecurityEvent(
+          'failed_login',
+          email,
+          `存在しないメールアドレスでのログイン試行 (試行回数: ${failedAttempt.count})`,
+          {
+            ipAddress: clientIP,
+            severity: failedAttempt.count >= 3 ? 'high' : 'medium'
+          }
+        );
+        
+        if (failedAttempt.isBlocked) {
+          await logSecurityEvent(
+            'account_locked',
+            email,
+            `複数回の失敗によりアカウントをブロックしました (${new Date(failedAttempt.blockUntil!).toLocaleString('ja-JP')})`,
+            {
+              ipAddress: clientIP,
+              severity: 'high'
+            }
+          );
         }
-      } else {
-        // ログイン
-        const user = await userServiceServer.getUserByEmail(email)
-        if (!user) {
-          throw new Error("メールアドレスまたはパスワードが間違っています")
-        }
+        
+        throw new Error("メールアドレスまたはパスワードが間違っています")
+      }
 
-        const isPasswordValid = await bcrypt.compare(password, user.password)
-        if (!isPasswordValid) {
-          throw new Error("メールアドレスまたはパスワードが間違っています")
+      const isPasswordValid = await bcrypt.compare(password, user.password)
+      if (!isPasswordValid) {
+        // 失敗試行を記録
+        const failedAttempt = recordFailedAttempt(email);
+        
+        // セキュリティイベント: パスワード間違い
+        await logSecurityEvent(
+          'failed_login',
+          email,
+          `パスワードが間違っています (試行回数: ${failedAttempt.count})`,
+          {
+            ipAddress: clientIP,
+            severity: failedAttempt.count >= 3 ? 'high' : 'medium'
+          }
+        );
+        
+        if (failedAttempt.isBlocked) {
+          await logSecurityEvent(
+            'account_locked',
+            email,
+            `複数回の失敗によりアカウントをブロックしました (${new Date(failedAttempt.blockUntil!).toLocaleString('ja-JP')})`,
+            {
+              ipAddress: clientIP,
+              severity: 'high'
+            }
+          );
         }
+        
+        throw new Error("メールアドレスまたはパスワードが間違っています")
+      }
 
-        // ログインの記録
-        await trackUser(user.id, user.name, user.email, 'credentials', 'signin');
+      // 成功時は失敗試行をリセット
+      resetFailedAttempts(email);
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        }
+      // ログインの記録
+      await trackUser(user.id, user.name, user.email, 'credentials', 'signin');
+
+      // ローカルログイン履歴に記録
+      loginHistoryService.recordLogin(user.id, user.email, user.name, 'signin');
+
+      // Google Sheetsにログインアクティビティを記録（非同期で実行、エラーでも処理を継続）
+      googleSheetsService.logActivity({
+        email: user.email,
+        action: 'ログイン',
+        details: `名前: ${user.name}`,
+        timestamp: new Date().toISOString()
+      }).catch(error => {
+        console.error('📊 [SHEETS] ログインアクティビティ記録に失敗:', error);
+      });
+
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
       }
     },
-  }),
+  })
 ];
 
 // Google OAuthプロバイダーを条件付きで追加
@@ -136,6 +211,16 @@ if (googleClientId && googleClientSecret && googleClientId !== '' && googleClien
         async profile(profile: any) {
           // Googleアカウントでのサインイン記録
           await trackUser(profile.sub, profile.name, profile.email, 'google', 'signin', profile.picture);
+          
+          // Google Sheetsにアクティビティを記録（非同期で実行、エラーでも処理を継続）
+          googleSheetsService.logActivity({
+            email: profile.email,
+            action: 'Google OAuth ログイン',
+            details: `名前: ${profile.name}`,
+            timestamp: new Date().toISOString()
+          }).catch(error => {
+            console.error('📊 [SHEETS] Google OAuth アクティビティ記録に失敗:', error);
+          });
           
           return {
             id: profile.sub,
@@ -194,4 +279,4 @@ export async function auth() {
   // この関数は簡易版として実装
   // 実際の認証はNextAuthハンドラーで処理
   return null
-} 
+}

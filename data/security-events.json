@@ -1,0 +1,119 @@
+[
+  {
+    "id": "1749719390834-44w5r31iq",
+    "type": "failed_login",
+    "email": "testnotification@example.com",
+    "timestamp": "2025-06-12T09:09:50.834Z",
+    "details": "存在しないメールアドレスでのログイン試行 (試行回数: 1)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  },
+  {
+    "id": "1749737887219-el7c7zq54",
+    "type": "failed_login",
+    "email": "ikkiyamamoto0518@gmail.com",
+    "timestamp": "2025-06-12T14:18:07.219Z",
+    "details": "パスワードが間違っています (試行回数: 1)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  },
+  {
+    "id": "1749787589337-w5yf85pla",
+    "type": "failed_login",
+    "email": "simpledog.1425@gmail.com",
+    "timestamp": "2025-06-13T04:06:29.337Z",
+    "details": "パスワードが間違っています (試行回数: 1)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  },
+  {
+    "id": "1749787853814-o0rpau6z2",
+    "type": "failed_login",
+    "email": "simpledog.1425@gmail.com",
+    "timestamp": "2025-06-13T04:10:53.814Z",
+    "details": "パスワードが間違っています (試行回数: 1)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  },
+  {
+    "id": "1749787993385-u69r50z20",
+    "type": "failed_login",
+    "email": "simpledog.1425@gmail.com",
+    "timestamp": "2025-06-13T04:13:13.385Z",
+    "details": "パスワードが間違っています (試行回数: 2)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  },
+  {
+    "id": "1749788000796-2xl7i3sof",
+    "type": "failed_login",
+    "email": "simpledog.1425@gmail.com",
+    "timestamp": "2025-06-13T04:13:20.796Z",
+    "details": "パスワードが間違っています (試行回数: 3)",
+    "ipAddress": "::1",
+    "severity": "high"
+  },
+  {
+    "id": "1749788262234-5z9r76i03",
+    "type": "failed_login",
+    "email": "ikki_y0518@icloud.com",
+    "timestamp": "2025-06-13T04:17:42.234Z",
+    "details": "パスワードが間違っています (試行回数: 1)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  },
+  {
+    "id": "1749788466188-s7pfavi4l",
+    "type": "failed_login",
+    "email": "090-0000-0001",
+    "timestamp": "2025-06-13T04:21:06.188Z",
+    "details": "パスワードが間違っています (試行回数: 1)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  },
+  {
+    "id": "1749789679294-auob6735u",
+    "type": "failed_login",
+    "email": "ikki_y0518@icloud.com",
+    "timestamp": "2025-06-13T04:41:19.294Z",
+    "details": "パスワードが間違っています (試行回数: 1)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  },
+  {
+    "id": "1749790075817-jwvc4nq5h",
+    "type": "failed_login",
+    "email": "ikki_y0518@icloud.com",
+    "timestamp": "2025-06-13T04:47:55.817Z",
+    "details": "パスワードが間違っています (試行回数: 1)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  },
+  {
+    "id": "1749794008416-0uf9ncmic",
+    "type": "failed_login",
+    "email": "ikki_y0518@icloud.com",
+    "timestamp": "2025-06-13T05:53:28.417Z",
+    "details": "パスワードが間違っています (試行回数: 1)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  },
+  {
+    "id": "1749794095378-vvi1rd9cl",
+    "type": "failed_login",
+    "email": "ikki_y0518@icloud.com",
+    "timestamp": "2025-06-13T05:54:55.378Z",
+    "details": "パスワードが間違っています (試行回数: 2)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  },
+  {
+    "id": "1749794611963-nvehdi3sn",
+    "type": "failed_login",
+    "email": "ikki_y0518@icloud.com",
+    "timestamp": "2025-06-13T06:03:31.963Z",
+    "details": "パスワードが間違っています (試行回数: 1)",
+    "ipAddress": "::1",
+    "severity": "medium"
+  }
+]

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suna Logo Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #1e293b;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .logo-section {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .logo-section h2 {
+            color: #374151;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .logo-grid {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .logo-item {
+            text-align: center;
+        }
+        
+        .logo-item p {
+            margin-top: 10px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .dark-theme {
+            background: #1f2937;
+            color: #f9fafb;
+        }
+        
+        .dark-theme .logo-section {
+            background: #374151;
+        }
+        
+        .dark-theme h1,
+        .dark-theme h2 {
+            color: #f9fafb;
+        }
+        
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        
+        .theme-toggle:hover {
+            background: #1d4ed8;
+        }
+        
+        .info-section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dark-theme .info-section {
+            background: #374151;
+        }
+        
+        .info-section h3 {
+            color: #1e293b;
+            margin-bottom: 15px;
+        }
+        
+        .dark-theme .info-section h3 {
+            color: #f9fafb;
+        }
+        
+        .info-section ul {
+            color: #4b5563;
+            line-height: 1.6;
+        }
+        
+        .dark-theme .info-section ul {
+            color: #d1d5db;
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙 ダークモード</button>
+    
+    <div class="container">
+        <h1>Suna Logo テスト</h1>
+        
+        <div class="logo-section">
+            <h2>ロゴサイズバリエーション</h2>
+            <div class="logo-grid">
+                <div class="logo-item">
+                    <!-- Small Size Logo -->
+                    <svg width="101" height="55" viewBox="0 0 101 55" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Suna Logo Small">
+                        <circle cx="79" cy="20" r="13" fill="#67E8F9" opacity="0.85"/>
+                        <circle cx="64" cy="28" r="8" fill="#2563EB" opacity="0.9"/>
+                        <circle cx="72" cy="35" r="5" fill="#A7F3D0" opacity="0.75"/>
+                        <text x="0" y="42" fontSize="26" fontWeight="700" fill="#1E293B" fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letterSpacing="-1.2px">suna</text>
+                    </svg>
+                    <p>Small (101×55)</p>
+                </div>
+                
+                <div class="logo-item">
+                    <!-- Medium Size Logo -->
+                    <svg width="135" height="70" viewBox="0 0 135 70" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Suna Logo Medium">
+                        <circle cx="105" cy="25" r="16" fill="#67E8F9" opacity="0.85"/>
+                        <circle cx="86" cy="35" r="10" fill="#2563EB" opacity="0.9"/>
+                        <circle cx="96" cy="45" r="6" fill="#A7F3D0" opacity="0.75"/>
+                        <text x="0" y="50" fontSize="32" fontWeight="700" fill="#1E293B" fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letterSpacing="-1.2px">suna</text>
+                    </svg>
+                    <p>Medium (135×70)</p>
+                </div>
+                
+                <div class="logo-item">
+                    <!-- Large Size Logo -->
+                    <svg width="202" height="105" viewBox="0 0 202 105" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Suna Logo Large">
+                        <circle cx="158" cy="38" r="24" fill="#67E8F9" opacity="0.85"/>
+                        <circle cx="129" cy="53" r="15" fill="#2563EB" opacity="0.9"/>
+                        <circle cx="144" cy="68" r="9" fill="#A7F3D0" opacity="0.75"/>
+                        <text x="0" y="75" fontSize="48" fontWeight="700" fill="#1E293B" fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letterSpacing="-1.2px">suna</text>
+                    </svg>
+                    <p>Large (202×105)</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <h3>ロゴの特徴</h3>
+            <ul>
+                <li><strong>3つの円:</strong> 明るいターコイズブルー、濃いブルー、薄いターコイズの円で構成</li>
+                <li><strong>レスポンシブサイズ:</strong> sm、md、lgの3つのサイズに対応</li>
+                <li><strong>テーマ対応:</strong> ライトモードとダークモードでテキスト色が自動調整</li>
+                <li><strong>アクセシビリティ:</strong> aria-labelとrole属性でスクリーンリーダー対応</li>
+                <li><strong>モダンフォント:</strong> システムフォントを使用してクリーンな表示</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        let isDark = false;
+        
+        function toggleTheme() {
+            isDark = !isDark;
+            const body = document.body;
+            const button = document.querySelector('.theme-toggle');
+            
+            if (isDark) {
+                body.classList.add('dark-theme');
+                button.textContent = '☀️ ライトモード';
+                // ダークモード用にテキスト色を変更
+                document.querySelectorAll('text').forEach(text => {
+                    text.setAttribute('fill', '#F8FAFC');
+                });
+            } else {
+                body.classList.remove('dark-theme');
+                button.textContent = '🌙 ダークモード';
+                // ライトモード用にテキスト色を変更
+                document.querySelectorAll('text').forEach(text => {
+                    text.setAttribute('fill', '#1E293B');
+                });
+            }
+        }
+    </script>
+</body>
+</html>

@@ -10,6 +10,7 @@ interface UserStats {
   todayLogins: number;
   todaySignups: number;
   activeUsers: number;
+  mode?: string;
 }
 
 export default function AdminDashboard() {
@@ -81,6 +82,8 @@ export default function AdminDashboard() {
   }, [session, status, isAdmin, router, userEmail, adminEmails, bypassAuth]);
 
   // 統計データを取得
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -88,19 +91,25 @@ export default function AdminDashboard() {
         if (response.ok) {
           const data = await response.json();
           setStats(data);
+          setDebugInfo(data.debug);
           console.log('📊 統計データ:', data);
+        } else {
+          const errorData = await response.json();
+          console.error('統計データ取得エラー:', errorData);
+          setDebugInfo({ error: errorData });
         }
       } catch (error) {
         console.error('Failed to fetch stats:', error);
+        setDebugInfo({ error: error instanceof Error ? error.message : String(error) });
       } finally {
         setLoading(false);
       }
     };
 
-    if (session) {
+    if (session || bypassAuth) {
       fetchStats();
     }
-  }, [session]);
+  }, [session, bypassAuth]);
 
   if (status === "loading" || loading) {
     return (
@@ -143,6 +152,14 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* デバッグ情報 */}
+        {bypassAuth && (
+          <div className="mb-4 bg-yellow-100 border border-yellow-400 rounded-lg p-4">
+            <h3 className="font-bold text-yellow-800 mb-2">🔓 バイパスモード有効</h3>
+            <p className="text-sm text-yellow-700">認証チェックをスキップしています</p>
+          </div>
+        )}
+        
         {/* ヘッダー */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -151,6 +168,13 @@ export default function AdminDashboard() {
               <p className="text-gray-600 mt-2">Sunaアプリケーションの利用統計</p>
             </div>
             <div className="flex space-x-3">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-colors flex items-center space-x-2"
+              >
+                <span>🔄</span>
+                <span>更新</span>
+              </button>
               <button
                 onClick={() => router.push('/admin/dashboard')}
                 className="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors flex items-center space-x-2"
@@ -167,6 +191,32 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+
+        {/* デバッグ情報 */}
+        {debugInfo && (
+          <div className="mb-6 bg-gray-100 rounded-lg p-4">
+            <h3 className="font-bold text-gray-700 mb-2">🐛 デバッグ情報</h3>
+            <div className="text-sm text-gray-600 space-y-1">
+              <p>環境: {debugInfo.environment || 'unknown'}</p>
+              <p>Google Sheets連携: {debugInfo.hasGoogleSheets ? '有効' : '無効'}</p>
+              <p>データモード: {stats?.mode || 'unknown'}</p>
+              {debugInfo.errors && (
+                <div className="mt-2 text-red-600">
+                  <p className="font-semibold">エラー:</p>
+                  {debugInfo.errors.map((error: string, index: number) => (
+                    <p key={index} className="ml-2">• {error}</p>
+                  ))}
+                </div>
+              )}
+              <details className="mt-2">
+                <summary className="cursor-pointer text-blue-600 hover:text-blue-800">詳細データ</summary>
+                <pre className="mt-2 text-xs bg-white p-2 rounded overflow-auto">
+                  {JSON.stringify({ stats, debugInfo }, null, 2)}
+                </pre>
+              </details>
+            </div>
+          </div>
+        )}
 
         {/* 統計カード */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">

@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
     let totalRecords = 0;
     let todayLogins = 0;
     let todaySignups = 0;
+    let errors: string[] = [];
 
     // ローカルユーザー数を取得（重複除去）
     try {
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
       console.log(`🐛 [DEBUG] Total users: ${users.length} records, ${totalUsers} unique emails`);
     } catch (error) {
       console.error('ローカルユーザー数の取得に失敗:', error);
+      errors.push(`ユーザー数取得エラー: ${error}`);
     }
 
     // ローカルログイン履歴から統計を取得
@@ -53,6 +55,7 @@ export async function GET(request: NextRequest) {
       console.log(`🐛 [DEBUG] Login stats: totalLogins=${totalLogins}, todayLogins=${todayLogins}, todaySignups=${todaySignups}`);
     } catch (error) {
       console.error('ローカルログイン統計の取得に失敗:', error);
+      errors.push(`ログイン統計取得エラー: ${error}`);
     }
 
     // Google Sheetsから統計情報を取得
@@ -185,7 +188,13 @@ export async function GET(request: NextRequest) {
       todayLogins,
       todaySignups,
       activeUsers,
-      mode: GOOGLE_SHEETS_ID ? 'google-sheets' : 'local-only'
+      mode: GOOGLE_SHEETS_ID ? 'google-sheets' : 'local-only',
+      debug: {
+        environment: process.env.NODE_ENV,
+        hasGoogleSheets: !!GOOGLE_SHEETS_ID,
+        errors: errors.length > 0 ? errors : undefined,
+        timestamp: new Date().toISOString()
+      }
     });
 
   } catch (error) {

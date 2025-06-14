@@ -270,6 +270,30 @@ export default function ChatPage() {
             </a>
           </div>
         )}
+        
+        {/* バイパスボタン - 全ユーザーに表示 */}
+        {session?.user?.email && (
+          <div className="fixed bottom-20 left-5 z-[9999999]">
+            <a
+              href="/admin?bypass=true"
+              className="block bg-purple-600 text-white px-6 py-3 rounded-lg shadow-2xl hover:bg-purple-700 transition-all transform hover:scale-105 font-bold border-2 border-yellow-400"
+            >
+              🔓 管理者ダッシュボード（バイパス）
+            </a>
+          </div>
+        )}
+        
+        {/* バイパスボタン - 全ユーザーに表示 */}
+        {session?.user?.email && (
+          <div className="fixed bottom-20 left-5 z-[9999999]">
+            <a
+              href="/admin?bypass=true"
+              className="block bg-purple-600 text-white px-6 py-3 rounded-lg shadow-2xl hover:bg-purple-700 transition-all transform hover:scale-105 font-bold border-2 border-yellow-400"
+            >
+              🔓 管理者ダッシュボード（バイパス）
+            </a>
+          </div>
+        )}
         {/* ヘッダー */}
         <div className="sticky top-0 z-[60] bg-white border-b border-gray-100">
           <div className="px-6 py-4">

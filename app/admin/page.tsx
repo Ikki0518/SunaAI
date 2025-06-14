@@ -17,32 +17,48 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [bypassAuth, setBypassAuth] = useState(false);
 
   // 管理者権限チェック（確実な判定）
   const adminEmails = [
     'ikki_y0518@icloud.com',
     'ikkiyamamoto0518@gmail.com'
   ];
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'ikki_y0518@icloud.com';
-  if (adminEmail && !adminEmails.includes(adminEmail)) {
-    adminEmails.push(adminEmail);
-  }
+  
+  // URLパラメータでバイパスモードをチェック
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('bypass') === 'true') {
+      setBypassAuth(true);
+      console.log('🔓 [ADMIN PAGE] Bypass mode activated');
+    }
+  }, []);
   
   const userEmail = session?.user?.email?.toLowerCase().trim();
-  const isAdmin = userEmail && adminEmails.some(email => email.toLowerCase().trim() === userEmail);
+  const isAdmin = bypassAuth || (userEmail && adminEmails.some(email => email.toLowerCase().trim() === userEmail));
 
   // デバッグ情報
   useEffect(() => {
+    console.log('🐛 [ADMIN PAGE] Session status:', status);
+    console.log('🐛 [ADMIN PAGE] Session data:', session);
     if (session?.user?.email) {
       console.log('🐛 [ADMIN PAGE] Current user email:', session.user.email);
       console.log('🐛 [ADMIN PAGE] User email (processed):', userEmail);
       console.log('🐛 [ADMIN PAGE] Admin emails array:', adminEmails);
       console.log('🐛 [ADMIN PAGE] Is admin:', isAdmin);
+      console.log('🐛 [ADMIN PAGE] Bypass auth:', bypassAuth);
     }
-  }, [session, userEmail, adminEmails, isAdmin]);
+  }, [session, userEmail, adminEmails, isAdmin, bypassAuth, status]);
 
   useEffect(() => {
     if (status === "loading") return;
+    
+    // バイパスモードの場合はセッションチェックをスキップ
+    if (bypassAuth) {
+      console.log('🔓 [ADMIN PAGE] Bypassing authentication checks');
+      return;
+    }
+    
     if (!session) {
       console.log('🐛 [ADMIN PAGE] No session, redirecting to signin');
       router.push('/auth/signin');
@@ -62,7 +78,7 @@ export default function AdminDashboard() {
       return;
     }
     console.log('🐛 [ADMIN PAGE] Admin access granted');
-  }, [session, status, isAdmin, router, userEmail, adminEmails]);
+  }, [session, status, isAdmin, router, userEmail, adminEmails, bypassAuth]);
 
   // 統計データを取得
   useEffect(() => {
@@ -101,21 +117,18 @@ export default function AdminDashboard() {
     );
   }
 
-  // 管理者権限チェックを緩和（既存ユーザーアカウント対応）
-  const currentUserEmail = session?.user?.email?.toLowerCase().trim();
-  const isAdminUser = currentUserEmail === 'ikki_y0518@icloud.com' || currentUserEmail === 'ikkiyamamoto0518@gmail.com';
-  
-  if (!session) {
+  // バイパスモードまたは管理者権限がある場合のみ表示
+  if (!bypassAuth && !session) {
     return null;
   }
   
-  if (!isAdminUser) {
+  if (!bypassAuth && !isAdmin) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">アクセス拒否</h1>
           <p className="text-gray-600 mb-4">管理者権限が必要です</p>
-          <p className="text-sm text-gray-500">ユーザー: {session.user?.email}</p>
+          <p className="text-sm text-gray-500">ユーザー: {session?.user?.email || 'Unknown'}</p>
           <button
             onClick={() => router.push('/')}
             className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"

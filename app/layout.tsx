@@ -5,6 +5,8 @@ import AuthProvider from "./providers/AuthProvider";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import ForceAdminButton from "./components/ForceAdminButton";
 
+// CACHE BUSTER: 2025-06-14 12:45 - FORCE LAYOUT REFRESH
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

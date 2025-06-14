@@ -1,7 +1,8 @@
 "use client"
 
+// CACHE BUSTER: 2025-06-14 12:44 - FORCE REFRESH
 export default function ForceAdminButton() {
-  console.log('🚨 [FORCE ADMIN BUTTON] Component is rendering!');
+  console.log('🚨 [FORCE ADMIN BUTTON] Component is rendering! Timestamp: 2025-06-14 12:44');
   
   return (
     <div 

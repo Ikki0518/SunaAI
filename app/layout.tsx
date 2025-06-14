@@ -42,6 +42,31 @@ export default function RootLayout({
           <ThemeProvider>
             {/* 全ページで管理者ボタンを表示 */}
             <ForceAdminButton />
+            
+            {/* 緊急用：直接HTMLで管理者ボタンを表示 */}
+            <div
+              style={{
+                position: 'fixed',
+                top: '0px',
+                right: '0px',
+                width: '300px',
+                height: '100px',
+                backgroundColor: 'red',
+                color: 'white',
+                zIndex: 999999999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                border: '5px solid yellow'
+              }}
+              onClick={() => window.location.href = '/admin'}
+            >
+              🚨 管理者サイト 🚨
+            </div>
+            
             {children}
           </ThemeProvider>
         </AuthProvider>

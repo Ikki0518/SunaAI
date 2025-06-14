@@ -126,6 +126,16 @@ export default function SignIn() {
       {/* 強制管理者ボタン - ログインページでも表示 */}
       <ForceAdminButton />
       
+      {/* 管理者用直接アクセスボタン */}
+      <div className="fixed bottom-5 right-5 z-[9999999]">
+        <a
+          href="/admin"
+          className="block bg-red-600 text-white px-6 py-3 rounded-lg shadow-2xl hover:bg-red-700 transition-all text-lg font-bold border-2 border-white"
+        >
+          🚨 管理者ダッシュボード直接アクセス 🚨
+        </a>
+      </div>
+      
       <div className="max-w-md w-full">
         {/* Logo & Title */}
         <div className="text-center mb-12">

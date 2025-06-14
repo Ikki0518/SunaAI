@@ -258,6 +258,18 @@ export default function ChatPage() {
             </a>
           </div>
         )}
+        
+        {/* 大きな管理者アクセスボタン - 確実に表示 */}
+        {session?.user?.email === 'ikki_y0518@icloud.com' && (
+          <div className="fixed top-20 right-5 z-[9999999]">
+            <a
+              href="/admin"
+              className="block bg-red-600 text-white px-8 py-4 rounded-lg shadow-2xl hover:bg-red-700 transition-all transform hover:scale-105 text-xl font-bold border-4 border-white"
+            >
+              🚨 管理者ダッシュボード 🚨
+            </a>
+          </div>
+        )}
         {/* ヘッダー */}
         <div className="sticky top-0 z-[60] bg-white border-b border-gray-100">
           <div className="px-6 py-4">

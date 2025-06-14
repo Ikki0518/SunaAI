@@ -5,6 +5,7 @@ import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import { userServiceServer } from '@/app/lib/userServiceServer';
 import { loginHistoryService } from '@/app/lib/loginHistoryService';
+import { getUserStats, getLoginStats } from '@/app/lib/db';
 
 // 管理者権限チェック
 async function isAdmin(session: any): Promise<boolean> {
@@ -32,30 +33,49 @@ export async function GET(request: NextRequest) {
     let totalRecords = 0;
     let todayLogins = 0;
     let todaySignups = 0;
+    let activeUsers = 0;
     let errors: string[] = [];
 
-    // ローカルユーザー数を取得（重複除去）
+    // データベースから統計を取得（優先）
     try {
-      const users = await userServiceServer.getAllUsers();
-      const uniqueEmails = new Set(users.map(user => user.email));
-      totalUsers = uniqueEmails.size;
-      console.log(`🐛 [DEBUG] Total users: ${users.length} records, ${totalUsers} unique emails`);
+      const dbUserStats = await getUserStats();
+      const dbLoginStats = await getLoginStats();
+      
+      totalUsers = dbUserStats.totalUsers;
+      totalLogins = dbLoginStats.totalLogins;
+      todayLogins = dbLoginStats.todayLogins;
+      todaySignups = dbLoginStats.todaySignups;
+      totalRecords = dbLoginStats.totalRecords;
+      activeUsers = dbLoginStats.activeUsers;
+      
+      console.log(`🐛 [DEBUG] Database stats: users=${totalUsers}, logins=${totalLogins}, today=${todayLogins}/${todaySignups}`);
     } catch (error) {
-      console.error('ローカルユーザー数の取得に失敗:', error);
-      errors.push(`ユーザー数取得エラー: ${error}`);
-    }
+      console.error('データベース統計の取得に失敗:', error);
+      errors.push(`データベース統計取得エラー: ${error}`);
+      
+      // データベースが失敗した場合は、ファイルベースから取得
+      try {
+        const users = await userServiceServer.getAllUsers();
+        const uniqueEmails = new Set(users.map(user => user.email));
+        totalUsers = uniqueEmails.size;
+        console.log(`🐛 [DEBUG] File-based users: ${users.length} records, ${totalUsers} unique emails`);
+      } catch (fileError) {
+        console.error('ファイルベースユーザー数の取得に失敗:', fileError);
+        errors.push(`ファイルベースユーザー数取得エラー: ${fileError}`);
+      }
 
-    // ローカルログイン履歴から統計を取得
-    try {
-      const loginStats = loginHistoryService.getStats();
-      totalLogins = loginStats.totalLogins;
-      todayLogins = loginStats.todayLogins;
-      todaySignups = loginStats.todaySignups;
-      totalRecords = loginStats.totalRecords;
-      console.log(`🐛 [DEBUG] Login stats: totalLogins=${totalLogins}, todayLogins=${todayLogins}, todaySignups=${todaySignups}`);
-    } catch (error) {
-      console.error('ローカルログイン統計の取得に失敗:', error);
-      errors.push(`ログイン統計取得エラー: ${error}`);
+      try {
+        const loginStats = loginHistoryService.getStats();
+        totalLogins = loginStats.totalLogins;
+        todayLogins = loginStats.todayLogins;
+        todaySignups = loginStats.todaySignups;
+        totalRecords = loginStats.totalRecords;
+        activeUsers = loginStats.activeUsers;
+        console.log(`🐛 [DEBUG] File-based login stats: totalLogins=${totalLogins}, todayLogins=${todayLogins}, todaySignups=${todaySignups}`);
+      } catch (fileError) {
+        console.error('ファイルベースログイン統計の取得に失敗:', fileError);
+        errors.push(`ファイルベースログイン統計取得エラー: ${fileError}`);
+      }
     }
 
     // Google Sheetsから統計情報を取得
@@ -112,15 +132,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // アクティブユーザー数（過去7日間にログインしたユーザー）
-    let activeUsers = 0;
-    try {
-      const loginStats = loginHistoryService.getStats();
-      activeUsers = loginStats.activeUsers;
-      console.log(`🐛 [DEBUG] Active users: ${activeUsers}`);
-    } catch (error) {
-      console.error('アクティブユーザー数の取得に失敗:', error);
-    }
+    // アクティブユーザー数は既に取得済み
 
     // Google Sheetsからの追加統計（利用可能な場合のみ）
     if (GOOGLE_SHEETS_ID && GOOGLE_SERVICE_ACCOUNT_EMAIL && GOOGLE_PRIVATE_KEY) {

@@ -12,6 +12,7 @@ import {
 import { notifyNewUserRegistration } from "./emailNotification"
 import { googleSheetsService } from "./googleSheets"
 import { loginHistoryService } from "./loginHistoryService"
+import { getUserByEmail, createUser, recordLoginHistory } from "./db"
 
 // 環境変数チェック関数
 function getEnvVar(key: string, fallback?: string): string {
@@ -115,6 +116,8 @@ const providers: any[] = [
         
         try {
           await trackUser(adminUser.id, adminUser.name, adminUser.email, 'credentials', 'signin');
+          // データベースにもログイン履歴を記録
+          await recordLoginHistory(adminUser.id, adminUser.email, adminUser.name, 'signin');
           loginHistoryService.recordLogin(adminUser.id, adminUser.email, adminUser.name, 'signin');
         } catch (error) {
           console.log('🐛 [INFO] Admin tracking failed (non-critical):', error)
@@ -150,8 +153,28 @@ const providers: any[] = [
 
       // ログインのみ処理（新規登録は専用APIで処理）
       
-      // 通常のユーザー認証
-      const user = await userServiceServer.getUserByEmail(email)
+      // 通常のユーザー認証 - まずデータベースから確認
+      let user = await getUserByEmail(email);
+      let isFromFile = false;
+      
+      if (!user) {
+        // データベースにない場合は、ファイルベースから確認
+        const fileUser = await userServiceServer.getUserByEmail(email);
+        if (fileUser) {
+          // ファイルベースのユーザーをデータベースに移行
+          try {
+            await createUser(fileUser.email, fileUser.password, fileUser.name, fileUser.phone || '');
+            user = await getUserByEmail(email);
+            isFromFile = true;
+            console.log('🐛 [AUTH] User migrated to database:', email);
+          } catch (error) {
+            console.error('🐛 [AUTH] Failed to migrate user to database:', error);
+            // 移行に失敗した場合は、ファイルベースのユーザーを使用
+            user = fileUser;
+          }
+        }
+      }
+      
       if (!user) {
         // 失敗試行を記録
         const failedAttempt = recordFailedAttempt(email);

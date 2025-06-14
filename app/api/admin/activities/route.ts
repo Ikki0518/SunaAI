@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/lib/auth';
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
+import { getRecentActivities } from '@/app/lib/db';
 
 // 管理者権限チェック
 async function isAdmin(session: any): Promise<boolean> {

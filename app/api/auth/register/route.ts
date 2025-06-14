@@ -10,6 +10,7 @@ import {
 import { notifyNewUserRegistration } from '@/app/lib/emailNotification'
 import { googleSheetsService } from '@/app/lib/googleSheets'
 import { loginHistoryService } from '@/app/lib/loginHistoryService'
+import { createUser, getUserByEmail, recordLoginHistory } from '@/app/lib/db'
 
 export async function POST(request: NextRequest) {
   try {

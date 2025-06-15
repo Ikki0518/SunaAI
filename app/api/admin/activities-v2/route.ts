@@ -8,7 +8,11 @@ export async function GET(request: NextRequest) {
     // 認証チェック
     const session = await getServerSession(authOptions);
     
-    if (!session || session.user?.email !== 'ikki_y0518@icloud.com') {
+    // 管理者メールアドレス判定を柔軟に
+    const adminEmails = ['ikki_y0518@icloud.com', 'ikkiyamamoto0518@gmail.com'];
+    const userEmail = session?.user?.email?.toLowerCase().trim();
+    const isAdmin = userEmail && adminEmails.some(email => email === userEmail);
+    if (!session || !isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -20,7 +24,7 @@ export async function GET(request: NextRequest) {
     
     // アクティビティとログイン履歴を結合
     const allActivities = [
-      ...activities.map(activity => ({
+      ...activities.map((activity: any) => ({
         id: activity.id,
         type: 'activity',
         userId: activity.user_id,
@@ -32,7 +36,7 @@ export async function GET(request: NextRequest) {
         timestamp: activity.created_at,
         source: 'supabase'
       })),
-      ...loginHistory.map(login => ({
+      ...loginHistory.map((login: any) => ({
         id: login.id,
         type: 'login',
         userId: login.user_id,
@@ -49,10 +53,10 @@ export async function GET(request: NextRequest) {
     // 統計情報を計算
     const stats = {
       totalActivities: activities.length,
-      totalLogins: loginHistory.filter(l => l.action === 'signin').length,
-      totalLogouts: loginHistory.filter(l => l.action === 'signout').length,
-      totalFailedLogins: loginHistory.filter(l => l.action === 'failed').length,
-      uniqueUsers: new Set([...activities.map(a => a.user_id), ...loginHistory.map(l => l.user_id)]).size
+      totalLogins: loginHistory.filter((l: any) => l.action === 'signin').length,
+      totalLogouts: loginHistory.filter((l: any) => l.action === 'signout').length,
+      totalFailedLogins: loginHistory.filter((l: any) => l.action === 'failed').length,
+      uniqueUsers: new Set([...activities.map((a: any) => a.user_id), ...loginHistory.map((l: any) => l.user_id)]).size
     };
 
     return NextResponse.json({

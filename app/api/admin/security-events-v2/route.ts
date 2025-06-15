@@ -9,7 +9,11 @@ export async function GET(request: NextRequest) {
     // 認証チェック
     const session = await getServerSession(authOptions);
     
-    if (!session || session.user?.email !== 'ikki_y0518@icloud.com') {
+    // 管理者メールアドレス判定を柔軟に
+    const adminEmails = ['ikki_y0518@icloud.com', 'ikkiyamamoto0518@gmail.com'];
+    const userEmail = session?.user?.email?.toLowerCase().trim();
+    const isAdmin = userEmail && adminEmails.some(email => email === userEmail);
+    if (!session || !isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -23,7 +27,7 @@ export async function GET(request: NextRequest) {
     const eventMap = new Map();
     
     // Supabaseのイベントを追加
-    supabaseEvents.forEach(event => {
+    supabaseEvents.forEach((event: any) => {
       eventMap.set(event.id, {
         ...event,
         source: 'supabase'

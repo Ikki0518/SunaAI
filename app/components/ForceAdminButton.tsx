@@ -1,11 +1,17 @@
 "use client"
 
 // CACHE BUSTER: 2025-06-14 12:44 - FORCE REFRESH
+import { useSession } from "next-auth/react"
+
 export default function ForceAdminButton() {
-  console.log('🚨 [FORCE ADMIN BUTTON] Component is rendering! Timestamp: 2025-06-14 12:44');
-  
+  const { data: session, status } = useSession();
+
+  // 管理者判定
+  const isAdmin = session?.user?.email === 'ikki_y0518@icloud.com' ||
+                  session?.user?.email === 'ikkiyamamoto0518@gmail.com';
+
   return (
-    <div 
+    <div
       style={{
         position: 'fixed',
         top: '0px',
@@ -24,8 +30,11 @@ export default function ForceAdminButton() {
         border: '5px solid yellow'
       }}
       onClick={() => {
-        console.log('🚨 [ADMIN BUTTON] Clicked!');
-        window.location.href = '/admin';
+        if (isAdmin) {
+          window.location.href = '/admin/dashboard';
+        } else {
+          window.location.href = '/admin';
+        }
       }}
     >
       🚨 管理者サイト 🚨

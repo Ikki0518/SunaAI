@@ -79,13 +79,16 @@ export default function ChatPage() {
     }
   }, [status, router]);
 
-  // 初期化時に新しいセッション作成
+  // 初期化時に新しいセッションを準備
   useEffect(() => {
     if (mounted && !currentSession) {
+      // ページ読み込み時は常に新しいセッションから開始する
       const newSession = ChatHistoryManager.createNewSession();
       setCurrentSession(newSession);
+      setMessages([]); // メッセージをクリア
+      setConversationId(null); // 会話IDをクリア
     }
-  }, [mounted, currentSession]);
+  }, [mounted]);
 
   // ドロップダウンメニューの外部クリック処理
   useEffect(() => {

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { recordLoginHistory, recordUserActivity } from './supabase';
 
 interface LoginRecord {
   userId: string;
@@ -46,7 +47,7 @@ class LoginHistoryService {
     }
   }
 
-  public recordLogin(userId: string, email: string, name: string, action: 'signin' | 'signup'): void {
+  public async recordLogin(userId: string, email: string, name: string, action: 'signin' | 'signup'): Promise<void> {
     try {
       const now = new Date();
       const timestamp = now.toISOString();
@@ -61,6 +62,26 @@ class LoginHistoryService {
         date
       };
 
+      // Supabaseに記録
+      if (action === 'signin' || action === 'signup') {
+        await recordLoginHistory(
+          userId,
+          email,
+          action === 'signup' ? 'signin' : action, // signupの場合もsigninとして記録
+          undefined, // IPアドレスは後で追加
+          undefined  // User-Agentは後で追加
+        );
+
+        // ユーザーアクティビティも記録
+        await recordUserActivity(
+          userId,
+          email,
+          action === 'signup' ? 'アカウント作成' : 'ログイン',
+          `${name}がシステムに${action === 'signup' ? '新規登録' : 'ログイン'}しました`
+        );
+      }
+
+      // ローカルファイルにも記録（バックアップとして）
       const history = this.readHistory();
       history.push(record);
       this.writeHistory(history);

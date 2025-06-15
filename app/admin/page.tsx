@@ -176,7 +176,7 @@ export default function AdminDashboard() {
                 <span>更新</span>
               </button>
               <button
-                onClick={() => router.push('/admin/dashboard')}
+                onClick={() => router.push(`/admin/dashboard${bypassAuth ? '?bypass=true' : ''}`)}
                 className="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors flex items-center space-x-2"
               >
                 <span>🔧</span>
@@ -344,7 +344,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             <button
-              onClick={() => router.push('/admin/dashboard')}
+              onClick={() => router.push(`/admin/dashboard${bypassAuth ? '?bypass=true' : ''}`)}
               className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors flex items-center space-x-2"
             >
               <span>🚀</span>

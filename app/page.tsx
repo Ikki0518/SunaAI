@@ -415,39 +415,7 @@ export default function ChatPage() {
             {messages.length === 0 ? (
               /* 初期画面 */
               <div className="h-full flex flex-col items-center justify-center px-6">
-                {/* 強制管理者アクセスボタン - 常に表示 */}
-                <div className="w-full max-w-2xl mb-8 p-6 bg-red-50 border-4 border-red-500 rounded-xl shadow-2xl">
-                  <div className="text-center">
-                    <h2 className="text-2xl font-bold text-red-800 mb-4">🚨 管理者アクセステスト - 強制表示</h2>
-                    <p className="text-red-600 mb-4">
-                      ユーザー: {session?.user?.email || 'セッションなし'}
-                    </p>
-                    <p className="text-sm text-gray-600 mb-4">
-                      このボタンは常に表示されます（キャッシュテスト用）
-                    </p>
-                    <div className="space-y-3">
-                      <a
-                        href="/admin"
-                        className="block w-full py-4 px-6 bg-red-600 text-white font-bold text-lg rounded-lg hover:bg-red-700 transition-colors shadow-lg"
-                      >
-                        🔧 管理者ダッシュボードへ（直接リンク）
-                      </a>
-                      <a
-                        href="/admin-access"
-                        className="block w-full py-4 px-6 bg-blue-600 text-white font-bold text-lg rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
-                      >
-                        📊 管理者アクセスページへ
-                      </a>
-                      <button
-                        onClick={() => window.location.reload()}
-                        className="block w-full py-3 px-6 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700 transition-colors"
-                      >
-                        🔄 ページリロード
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-center mb-16">
+                <div className="text-center mb-8">
                   {mounted && session?.user?.name ? (
                     <h1 className="text-4xl font-normal text-gray-800 mb-2">
                       こんにちは、{session.user.name}さん
@@ -457,7 +425,25 @@ export default function ChatPage() {
                       こんにちは
                     </h1>
                   )}
-                  <p className="text-lg text-gray-500">今日は何についてお話ししましょうか？</p>
+                  <p className="text-lg text-gray-500 mb-8">今日は何についてお話ししましょうか？</p>
+                  
+                  {/* チャットを始めるボタン */}
+                  <button
+                    onClick={() => {
+                      setInput("こんにちは");
+                      handleSend();
+                    }}
+                    className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 ease-in-out transform bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl hover:from-blue-600 hover:to-blue-700 hover:scale-105 hover:shadow-xl"
+                  >
+                    <span className="absolute inset-0 w-full h-full transition duration-200 ease-out transform translate-x-1 translate-y-1 bg-gradient-to-r from-blue-600 to-blue-700 group-hover:-translate-x-0 group-hover:-translate-y-0"></span>
+                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500 to-blue-600 border-2 border-blue-600 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-blue-700"></span>
+                    <span className="relative flex items-center space-x-2">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <span className="text-lg">チャットを始める</span>
+                    </span>
+                  </button>
                 </div>
               </div>
             ) : (

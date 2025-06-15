@@ -11,6 +11,17 @@ interface EmailConfig {
   };
 }
 
+// セキュリティイベントの型定義
+interface SecurityEvent {
+  id: string;
+  type: string;
+  email?: string;
+  timestamp: string;
+  details: string;
+  ipAddress?: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+}
+
 // 新規登録通知メールの送信
 export async function sendNewUserNotification(
   userEmail: string,
@@ -244,4 +255,141 @@ export async function notifyNewUserRegistration(
     email: emailSent ? '✅ 成功' : '❌ 失敗',
     slack: slackSent ? '✅ 成功' : '❌ 失敗'
   });
+}
+// セキュリティアラートメールの送信
+export async function sendSecurityAlert(event: SecurityEvent): Promise<boolean> {
+  try {
+    // 環境変数からメール設定を取得
+    const emailConfig: EmailConfig = {
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASS || '',
+      },
+    };
+
+    // 管理者メールアドレス
+    const adminEmails = [
+      'ikki_y0518@icloud.com',
+      'ikkiyamamoto0518@gmail.com'
+    ];
+
+    // メール設定が不完全な場合はログのみ出力
+    if (!emailConfig.auth.user || !emailConfig.auth.pass) {
+      console.log('🚨 [SECURITY ALERT] SMTP設定が不完全です - コンソールログのみ出力');
+      console.log('🚨 [セキュリティアラート]', event);
+      return false;
+    }
+
+    // Nodemailerトランスポーターを作成
+    const transporter = nodemailer.createTransport(emailConfig);
+
+    // HTMLメールテンプレート
+    const severityColors = {
+      low: '#10b981',
+      medium: '#f59e0b',
+      high: '#ef4444',
+      critical: '#991b1b'
+    };
+
+    const severityEmojis = {
+      low: '🟢',
+      medium: '🟡',
+      high: '🔴',
+      critical: '🚨'
+    };
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; background-color: #f3f4f6; margin: 0; padding: 20px; }
+          .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .header { background-color: ${severityColors[event.severity]}; color: white; padding: 20px; text-align: center; }
+          .content { padding: 30px; }
+          .info-box { background-color: #f9fafb; border-left: 4px solid ${severityColors[event.severity]}; padding: 15px; margin: 20px 0; }
+          .footer { background-color: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>${severityEmojis[event.severity]} セキュリティアラート</h1>
+            <p>重要度: ${event.severity.toUpperCase()}</p>
+          </div>
+          <div class="content">
+            <div class="info-box">
+              <h3>🔍 イベント詳細</h3>
+              <p><strong>種類:</strong> ${event.type}</p>
+              <p><strong>詳細:</strong> ${event.details}</p>
+              ${event.email ? `<p><strong>関連メール:</strong> ${event.email}</p>` : ''}
+              ${event.ipAddress ? `<p><strong>IPアドレス:</strong> ${event.ipAddress}</p>` : ''}
+              <p><strong>発生時刻:</strong> ${new Date(event.timestamp).toLocaleString('ja-JP')}</p>
+            </div>
+            
+            <div class="info-box">
+              <h3>⚡ 推奨アクション</h3>
+              ${event.severity === 'critical' ? '<p>• 直ちにシステムログを確認してください</p>' : ''}
+              ${event.severity === 'high' || event.severity === 'critical' ? '<p>• 該当ユーザーのアカウントを確認してください</p>' : ''}
+              <p>• 管理ダッシュボードで詳細を確認してください</p>
+              <p><a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/dashboard" style="color: ${severityColors[event.severity]};">管理ダッシュボードを開く</a></p>
+            </div>
+          </div>
+          <div class="footer">
+            <p>このメールはSunaセキュリティシステムから自動送信されています。</p>
+            <p>イベントID: ${event.id}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const textContent = `
+🚨 Sunaセキュリティアラート
+
+重要度: ${event.severity.toUpperCase()}
+
+イベント詳細:
+- 種類: ${event.type}
+- 詳細: ${event.details}
+${event.email ? `- 関連メール: ${event.email}` : ''}
+${event.ipAddress ? `- IPアドレス: ${event.ipAddress}` : ''}
+- 発生時刻: ${new Date(event.timestamp).toLocaleString('ja-JP')}
+
+管理ダッシュボード: ${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/dashboard
+
+イベントID: ${event.id}
+    `;
+
+    // 各管理者にメールを送信
+    const emailPromises = adminEmails.map(async (adminEmail) => {
+      try {
+        await transporter.sendMail({
+          from: `"Suna Security Alert" <${emailConfig.auth.user}>`,
+          to: adminEmail,
+          subject: `🚨 [${event.severity.toUpperCase()}] Sunaセキュリティアラート - ${event.type}`,
+          text: textContent,
+          html: htmlContent,
+        });
+        console.log(`🚨 [SECURITY] セキュリティアラートを送信しました: ${adminEmail}`);
+        return true;
+      } catch (error) {
+        console.error(`🚨 [SECURITY] 送信失敗 (${adminEmail}):`, error);
+        return false;
+      }
+    });
+
+    const results = await Promise.all(emailPromises);
+    const successCount = results.filter(Boolean).length;
+    
+    console.log(`🚨 [SECURITY] アラート送信完了: ${successCount}/${adminEmails.length}件成功`);
+    return successCount > 0;
+
+  } catch (error) {
+    console.error('🚨 [SECURITY] セキュリティアラート送信エラー:', error);
+    return false;
+  }
 }

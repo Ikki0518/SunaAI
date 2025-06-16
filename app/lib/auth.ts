@@ -1,7 +1,7 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
-import { userServiceServer } from "./userServiceServer"
+import { getSupabaseUserByEmail } from "./supabase"
 import { logSecurityEvent } from "@/app/api/admin/security-events/route"
 import {
   recordFailedAttempt,
@@ -159,7 +159,7 @@ const providers: any[] = [
       
       if (!user) {
         // データベースにない場合は、ファイルベースから確認
-        const fileUser = await userServiceServer.getUserByEmail(email);
+        const fileUser = await getSupabaseUserByEmail(email);
         if (fileUser) {
           // ファイルベースのユーザーをデータベースに移行
           try {
@@ -319,7 +319,7 @@ export const authOptions = {
         // ユーザー情報を最新に更新
         if (token.id) {
           try {
-            const latestUser = await userServiceServer.getUserByEmail(session.user.email);
+            const latestUser = await getSupabaseUserByEmail(session.user.email);
             if (latestUser) {
               session.user.name = latestUser.name;
             }

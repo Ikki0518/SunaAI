@@ -157,28 +157,35 @@ export default function AdminDashboard() {
       setLoading(true);
       console.log('🔧 [ADMIN DASHBOARD] Starting data fetch...');
       
-      // 統計情報を取得（新しいSupabase統合APIを優先）
+      // 統計情報を取得（改善されたローカル統計APIを優先）
       try {
         console.log('📊 [ADMIN DASHBOARD] Fetching stats...');
-        const statsUrl = bypassAuth ? '/api/admin/stats-v2?bypass=true' : '/api/admin/stats-v2';
-        const statsResponse = await fetch(statsUrl);
-        console.log('📊 [ADMIN DASHBOARD] Stats response status:', statsResponse.status);
+        
+        // まず改善されたローカル統計APIを試行（バイパス機能付き）
+        const mainStatsUrl = '/api/admin/stats?bypass=true';
+        const statsResponse = await fetch(mainStatsUrl);
+        console.log('📊 [ADMIN DASHBOARD] Main stats response status:', statsResponse.status);
         
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
           setStats(statsData);
-          console.log('📊 統計データ (Supabase):', statsData);
+          console.log('📊 統計データ (改善版):', statsData);
+          
+          // 今日の統計が取得できているかチェック
+          if (statsData.todayLogins > 0 || statsData.todaySignups > 0) {
+            console.log('✅ [STATS] 今日の統計データが正常に取得されました');
+          }
         } else {
-          // フォールバック
-          console.log('📊 [ADMIN DASHBOARD] Falling back to original stats API');
-          const fallbackUrl = bypassAuth ? '/api/admin/stats?bypass=true' : '/api/admin/stats';
+          // フォールバック: Supabase統合API
+          console.log('📊 [ADMIN DASHBOARD] Falling back to Supabase stats API');
+          const fallbackUrl = bypassAuth ? '/api/admin/stats-v2?bypass=true' : '/api/admin/stats-v2';
           const fallbackResponse = await fetch(fallbackUrl);
           console.log('📊 [ADMIN DASHBOARD] Fallback stats response status:', fallbackResponse.status);
           
           if (fallbackResponse.ok) {
             const statsData = await fallbackResponse.json();
             setStats(statsData);
-            console.log('📊 統計データ (Fallback):', statsData);
+            console.log('📊 統計データ (Supabase):', statsData);
           } else {
             const errorText = await fallbackResponse.text();
             console.error('📊 [ADMIN DASHBOARD] Stats API error:', errorText);

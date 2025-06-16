@@ -78,5 +78,29 @@
     "action": "signin",
     "timestamp": "2025-06-15T05:14:35.516Z",
     "date": "2025-06-15"
+  },
+  {
+    "userId": "test-today-login-1",
+    "email": "ikki_y0518@icloud.com",
+    "name": "いっき",
+    "action": "signin",
+    "timestamp": "2025-01-17T10:30:00.000Z",
+    "date": "2025-01-17"
+  },
+  {
+    "userId": "test-today-login-2",
+    "email": "ikkiyamamoto0518@gmail.com",
+    "name": "ikkiyamamoto0518",
+    "action": "signin",
+    "timestamp": "2025-01-17T11:15:00.000Z",
+    "date": "2025-01-17"
+  },
+  {
+    "userId": "test-today-signup-1",
+    "email": "test.user@example.com",
+    "name": "テストユーザー",
+    "action": "signup",
+    "timestamp": "2025-01-17T12:00:00.000Z",
+    "date": "2025-01-17"
   }
 ]

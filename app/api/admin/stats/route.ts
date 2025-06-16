@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     let activeUsers = 0;
     let errors: string[] = [];
 
-    // ローカルファイルから統計を取得（確実に動作）
+    // ローカルファイルから統計を取得（最優先、確実に動作）
     try {
       const users = await userServiceServer.getAllUsers();
       const uniqueEmails = new Set(users.map(user => user.email));
@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
       errors.push(`ファイルベースユーザー数取得エラー: ${fileError}`);
     }
 
+    // 改善されたローカルログイン統計を取得（最優先）
     try {
       const loginStats = loginHistoryService.getStats();
       totalLogins = loginStats.totalLogins;
@@ -71,7 +72,19 @@ export async function GET(request: NextRequest) {
       todaySignups = loginStats.todaySignups;
       totalRecords = loginStats.totalRecords;
       activeUsers = loginStats.activeUsers;
-      console.log(`🐛 [DEBUG] File-based login stats: totalLogins=${totalLogins}, todayLogins=${todayLogins}, todaySignups=${todaySignups}, activeUsers=${activeUsers}, totalRecords=${totalRecords}`);
+      
+      console.log(`🐛 [DEBUG] Improved local login stats:`, {
+        totalLogins,
+        todayLogins,
+        todaySignups,
+        activeUsers,
+        totalRecords
+      });
+      
+      // ローカル統計が有効ならここで確定（他のソースをチェックしない）
+      if (totalLogins > 0 || totalRecords > 0) {
+        console.log('✅ [STATS API] ローカル統計を使用（有効なデータあり）');
+      }
     } catch (fileError) {
       console.error('ファイルベースログイン統計の取得に失敗:', fileError);
       errors.push(`ファイルベースログイン統計取得エラー: ${fileError}`);

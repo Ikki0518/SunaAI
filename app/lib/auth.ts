@@ -93,6 +93,31 @@ export const authOptions = {
           console.error('🐘 [DEBUG] Supabase login history insert error:', e);
         }
 
+        // ローカルログイン履歴にも記録
+        try {
+          const now = new Date();
+          const loginRecord = {
+            userId: user.id,
+            email: user.email,
+            name: user.name,
+            action: 'signin',
+            timestamp: now.toISOString(),
+            date: now.toISOString().split('T')[0], // 現在の日付を確実に設定
+            userAgent: req?.headers?.['user-agent'] || '',
+            ipAddress: req?.headers?.['x-forwarded-for']?.split(',')[0] || req?.headers?.['x-real-ip'] || 'unknown'
+          };
+          
+          await loginHistoryService.addRecord(loginRecord);
+          console.log('✅ [AUTH] ローカルログイン履歴記録完了:', {
+            email: user.email,
+            action: 'signin',
+            date: loginRecord.date,
+            timestamp: loginRecord.timestamp
+          });
+        } catch (e) {
+          console.error('❌ [AUTH] ローカルログイン履歴記録エラー:', e);
+        }
+
         // 成功時は失敗試行をリセット
         resetFailedAttempts(email);
 

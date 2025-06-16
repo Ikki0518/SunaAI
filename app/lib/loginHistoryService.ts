@@ -11,6 +11,11 @@ interface LoginRecord {
   date: string; // YYYY-MM-DD format
 }
 
+interface LoginHistoryRecord extends LoginRecord {
+  userAgent?: string;
+  ipAddress?: string;
+}
+
 class LoginHistoryService {
   private filePath: string;
 
@@ -95,20 +100,55 @@ class LoginHistoryService {
   public getStats() {
     try {
       const history = this.readHistory();
-      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const today = now.toISOString().split('T')[0]; // YYYY-MM-DD形式
+      const todayJST = new Date(now.getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0]; // JST考慮
+
+      console.log('📊 [LOGIN STATS] 統計計算開始');
+      console.log('📊 [LOGIN STATS] 今日の日付 (UTC):', today);
+      console.log('📊 [LOGIN STATS] 今日の日付 (JST):', todayJST);
+      console.log('📊 [LOGIN STATS] 履歴レコード数:', history.length);
 
       // 総ログイン数（サインインのみ）
       const totalLogins = history.filter(record => record.action === 'signin').length;
 
-      // 今日のログイン数
-      const todayLogins = history.filter(record => 
+      // 今日のログイン数（UTC, JST両方を考慮）
+      const todayLoginsUTC = history.filter(record => 
         record.date === today && record.action === 'signin'
       ).length;
+      
+      const todayLoginsJST = history.filter(record => 
+        record.date === todayJST && record.action === 'signin'
+      ).length;
 
-      // 今日の新規登録数
-      const todaySignups = history.filter(record => 
+      // タイムスタンプベースでの今日のログイン数（より確実）
+      const todayLoginsTimestamp = history.filter(record => {
+        if (record.action !== 'signin') return false;
+        const recordDate = new Date(record.timestamp);
+        const recordDateStr = recordDate.toISOString().split('T')[0];
+        return recordDateStr === today || recordDateStr === todayJST;
+      }).length;
+
+      const todayLogins = Math.max(todayLoginsUTC, todayLoginsJST, todayLoginsTimestamp);
+
+      // 今日の新規登録数（UTC, JST両方を考慮）
+      const todaySignupsUTC = history.filter(record => 
         record.date === today && record.action === 'signup'
       ).length;
+      
+      const todaySignupsJST = history.filter(record => 
+        record.date === todayJST && record.action === 'signup'
+      ).length;
+
+      // タイムスタンプベースでの今日の新規登録数
+      const todaySignupsTimestamp = history.filter(record => {
+        if (record.action !== 'signup') return false;
+        const recordDate = new Date(record.timestamp);
+        const recordDateStr = recordDate.toISOString().split('T')[0];
+        return recordDateStr === today || recordDateStr === todayJST;
+      }).length;
+
+      const todaySignups = Math.max(todaySignupsUTC, todaySignupsJST, todaySignupsTimestamp);
 
       // 過去7日間のアクティブユーザー数
       const sevenDaysAgo = new Date();
@@ -117,9 +157,38 @@ class LoginHistoryService {
 
       const activeUserIds = new Set();
       history.forEach(record => {
-        if (record.date >= sevenDaysAgoStr && record.action === 'signin') {
-          activeUserIds.add(record.userId);
+        if (record.action === 'signin') {
+          // dateフィールドベース
+          if (record.date >= sevenDaysAgoStr) {
+            activeUserIds.add(record.userId);
+          }
+          // timestampベース（フォールバック）
+          const recordDate = new Date(record.timestamp);
+          if (recordDate >= sevenDaysAgo) {
+            activeUserIds.add(record.userId);
+          }
         }
+      });
+
+      // デバッグ情報
+      console.log('📊 [LOGIN STATS] 計算結果:');
+      console.log('  - 総ログイン数:', totalLogins);
+      console.log('  - 今日のログイン (UTC):', todayLoginsUTC);
+      console.log('  - 今日のログイン (JST):', todayLoginsJST);
+      console.log('  - 今日のログイン (Timestamp):', todayLoginsTimestamp);
+      console.log('  - 今日のログイン (最終):', todayLogins);
+      console.log('  - 今日の新規登録 (UTC):', todaySignupsUTC);
+      console.log('  - 今日の新規登録 (JST):', todaySignupsJST);
+      console.log('  - 今日の新規登録 (Timestamp):', todaySignupsTimestamp);
+      console.log('  - 今日の新規登録 (最終):', todaySignups);
+      console.log('  - アクティブユーザー数:', activeUserIds.size);
+      console.log('  - 総記録数:', history.length);
+
+      // 最近のレコードをサンプル表示
+      const recentRecords = history.slice(-5);
+      console.log('📊 [LOGIN STATS] 最新5件のレコード:');
+      recentRecords.forEach((record, index) => {
+        console.log(`  ${index + 1}. ${record.date} ${record.action} (${record.email})`);
       });
 
       return {
@@ -130,7 +199,7 @@ class LoginHistoryService {
         totalRecords: history.length
       };
     } catch (error) {
-      console.error('統計情報の取得に失敗:', error);
+      console.error('📊 [LOGIN STATS] 統計情報の取得に失敗:', error);
       return {
         totalLogins: 0,
         todayLogins: 0,
@@ -143,6 +212,24 @@ class LoginHistoryService {
 
   public getAllHistory(): LoginRecord[] {
     return this.readHistory();
+  }
+
+  // 新しいレコードを追加
+  public addRecord(record: LoginHistoryRecord): void {
+    try {
+      const history = this.readHistory();
+      history.push(record);
+      
+      // ファイルに保存
+      if (typeof window === 'undefined') {
+        // サーバーサイドの場合
+        fs.writeFileSync(this.filePath, JSON.stringify(history, null, 2));
+        console.log('✅ [LOGIN HISTORY] レコード追加完了:', record.email, record.action);
+      }
+    } catch (error) {
+      console.error('❌ [LOGIN HISTORY] レコード追加エラー:', error);
+      throw error;
+    }
   }
 }
 

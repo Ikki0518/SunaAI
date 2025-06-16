@@ -39,14 +39,14 @@ export async function GET(request: NextRequest) {
     }));
 
     // 重複メールアドレスをチェック
-    const emailCounts = safeUsers.reduce((acc: Record<string, number>, user) => {
+    const emailCounts = safeUsers.reduce((acc: Record<string, number>, user: any) => {
       acc[user.email] = (acc[user.email] || 0) + 1;
       return acc;
     }, {});
 
     const duplicates = Object.entries(emailCounts)
-      .filter(([email, count]) => count > 1)
-      .map(([email, count]) => ({ email, count }));
+      .filter(([email, count]) => (count as number) > 1)
+      .map(([email, count]) => ({ email, count: count as number }));
 
     return NextResponse.json({
       users: safeUsers,

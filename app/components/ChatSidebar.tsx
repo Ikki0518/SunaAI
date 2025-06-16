@@ -124,20 +124,19 @@ export default function ChatSidebar({
 
   return (
     <>
-      {/* サイドバー - デスクトップのみ常に表示、モバイルではオーバーレイ */}
+      {/* サイドバー - シンプル表示 */}
       <div 
         className={`
-          fixed top-0 left-0 h-full z-50
+          fixed top-0 left-0 h-full z-40
           ${isOpen ? 'w-80' : 'w-16'} 
-          ${isOpen ? 'md:block' : 'md:block hidden'}
           transition-all duration-300 ease-in-out
           bg-white border-r border-gray-200 shadow-lg
           overflow-hidden
         `}
         style={{ minWidth: isOpen ? '320px' : '64px' }}
       >
-        {/* デスクトップのみ表示 - 常に表示されるボタン群 */}
-        <div className="hidden md:flex flex-col p-2 space-y-1 bg-white border-b border-gray-200">
+        {/* 常に表示されるボタン群 */}
+        <div className="flex flex-col p-2 space-y-1 bg-white border-b border-gray-200">
           {/* ハンバーガーメニューボタン */}
           <button
             onClick={onToggle}
@@ -161,25 +160,10 @@ export default function ChatSidebar({
           </button>
         </div>
 
-        {/* モバイル用ヘッダー */}
-        <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">過去のチャット</h2>
-          <button
-            onClick={onToggle}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
         {/* サイドバーコンテンツ */}
-        <div className={`h-full flex flex-col transition-all duration-300 ${
-          isOpen ? 'opacity-100' : 'md:opacity-0 md:pointer-events-none'
-        }`}>
-          {/* デスクトップ用ヘッダー */}
-          <div className="hidden md:flex items-center justify-between p-4 border-b border-gray-200">
+        <div className={`h-full flex flex-col transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          {/* ヘッダー */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <h2 className={`text-lg font-semibold text-gray-900 transition-all duration-500 ${
               isOpen ? 'opacity-100 translate-y-0 delay-200' : 'opacity-0 translate-y-4'
             }`}>
@@ -188,10 +172,10 @@ export default function ChatSidebar({
           </div>
 
           {/* チャット履歴リスト */}
-          <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
+          <div className="flex-1 overflow-y-auto">
             {chatSessions.length === 0 ? (
               <div className={`text-center p-8 text-gray-500 transition-all duration-500 ${
-                isOpen ? 'opacity-100 translate-y-0 delay-300' : 'md:opacity-0 md:translate-y-4'
+                isOpen ? 'opacity-100 translate-y-0 delay-300' : 'opacity-0 translate-y-4'
               }`}>
                 <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8m-8 0V8a4 4 0 118 0v4m-8 0v4a4 4 0 108 0v-4" />

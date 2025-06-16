@@ -137,9 +137,9 @@ export default function ClientChatPage() {
           sidebarOpen ? 'md:ml-80' : 'md:ml-16'
         }`}
       >
-        {/* ヘッダー - モバイル対応 */}
-        <div className="fixed top-0 left-0 right-0 z-[60] bg-white border-b border-gray-100">
-          <div className="px-3 md:px-6 py-2 md:py-4">
+        {/* ヘッダー - シンプル固定 */}
+        <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100">
+          <div className="px-3 md:px-6 py-3 md:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 md:space-x-4">
                 {/* モバイル用サイドバートグルボタン */}
@@ -162,9 +162,9 @@ export default function ClientChatPage() {
           </div>
         </div>
 
-        {/* メインコンテンツ - ヘッダー分のpadding-topを追加 */}
-        <div className="flex-1 flex flex-col overflow-hidden pt-16 md:pt-20 pb-24 md:pb-28">
-          <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {/* メインコンテンツ - ヘッダー/フッター分のpadding */}
+        <div className="flex-1 flex flex-col overflow-hidden pt-16 md:pt-20 pb-20 md:pb-24">
+          <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center px-4 md:px-6">
                 <div className="text-center mb-8">
@@ -260,40 +260,41 @@ export default function ClientChatPage() {
               </div>
             )}
           </div>
+        </div>
 
-          {/* フッター入力エリア - 固定位置でモバイル対応 */}
-          <div className="fixed bottom-0 left-0 right-0 z-[60] px-3 md:px-6 py-3 md:py-4 border-t border-gray-100 bg-white">
-            <div className={`max-w-3xl mx-auto ${sidebarOpen ? 'md:ml-80' : 'md:ml-16'} transition-all duration-300`}>
-              <form
-                onSubmit={e => {
-                  e.preventDefault();
-                  handleSend();
-                }}
-                className="flex items-end space-x-2 md:space-x-4"
+        {/* フッター入力エリア - シンプル固定 */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 px-3 md:px-6 py-3 md:py-4 border-t border-gray-100 bg-white">
+          <div className={`max-w-3xl mx-auto ${sidebarOpen ? 'md:ml-80' : 'md:ml-16'} transition-all duration-300`}>
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                handleSend();
+              }}
+              className="flex items-end space-x-2 md:space-x-4"
+            >
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                rows={1}
+                style={{ fontSize: '16px' }} // iOS Safari ズーム防止
+                className="flex-1 resize-none px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50"
+                placeholder="メッセージを入力..."
+                disabled={loading}
+              />
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 md:py-3 px-4 md:px-8 rounded-lg md:rounded-xl transition-all duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm md:text-base"
               >
-                <textarea
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  rows={1}
-                  className="flex-1 resize-none px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50 text-sm md:text-base"
-                  placeholder="メッセージを入力..."
-                  disabled={loading}
-                />
-                <button
-                  type="submit"
-                  disabled={loading || !input.trim()}
-                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 md:py-3 px-4 md:px-8 rounded-lg md:rounded-xl transition-all duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm md:text-base"
-                >
-                  送信
-                </button>
-              </form>
-            </div>
+                送信
+              </button>
+            </form>
           </div>
         </div>
       </div>
 
-      {/* サイドバー - モバイル対応 */}
+      {/* サイドバー - シンプル表示 */}
       <ChatSidebar
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -301,14 +302,6 @@ export default function ClientChatPage() {
         onNewChat={handleNewChat}
         onSessionSelect={handleSessionSelect}
       />
-
-      {/* モバイル用サイドバーオーバーレイ */}
-      {sidebarOpen && (
-        <div 
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
     </div>
   );
 }

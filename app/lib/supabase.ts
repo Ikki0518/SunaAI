@@ -117,8 +117,8 @@ export async function getStats() {
   return {
     totalUsers: users?.length || 0,
     totalLogins: logins?.length || 0,
-    todayLogins: (logins || []).filter(l => l.created_at && new Date(l.created_at).toDateString() === new Date().toDateString()).length,
-    todaySignups: (users || []).filter(u => u.created_at && new Date(u.created_at).toDateString() === new Date().toDateString()).length,
+    todayLogins: (logins || []).filter((l: any) => l.created_at && new Date(l.created_at).toDateString() === new Date().toDateString()).length,
+    todaySignups: (users || []).filter((u: any) => u.created_at && new Date(u.created_at).toDateString() === new Date().toDateString()).length,
     activeUsers: 0 // 必要に応じて実装
   };
 }

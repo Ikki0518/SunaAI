@@ -106,3 +106,24 @@ export async function getSecurityEvents(limit: number = 100) {
   if (error) throw error;
   return data || [];
 }
+// 統計情報取得
+export async function getStats() {
+  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  // ユーザー数
+  const { data: users, error: userError } = await supabaseAdmin.from('users').select('*');
+  // ログイン履歴
+  const { data: logins, error: loginError } = await supabaseAdmin.from('login_history').select('*');
+  if (userError || loginError) throw userError || loginError;
+  return {
+    totalUsers: users?.length || 0,
+    totalLogins: logins?.length || 0,
+    todayLogins: (logins || []).filter(l => l.created_at && new Date(l.created_at).toDateString() === new Date().toDateString()).length,
+    todaySignups: (users || []).filter(u => u.created_at && new Date(u.created_at).toDateString() === new Date().toDateString()).length,
+    activeUsers: 0 // 必要に応じて実装
+  };
+}
+
+// ダミー実装: ログイン履歴・ユーザーアクティビティ・セキュリティイベント記録
+export async function recordLoginHistory(...args: any[]) {}
+export async function recordUserActivity(...args: any[]) {}
+export async function recordSecurityEvent(...args: any[]) {}

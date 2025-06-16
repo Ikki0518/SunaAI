@@ -10,11 +10,14 @@ interface SunaLogoProps {
 export default function SunaLogo({ size = 'md', className = '' }: SunaLogoProps) {
   let resolvedTheme = 'light'
   
+  // より安全なThemeContext使用
   try {
-    const themeContext = useTheme()
-    resolvedTheme = themeContext?.resolvedTheme || 'light'
+    if (typeof window !== 'undefined') {
+      const themeContext = useTheme()
+      resolvedTheme = themeContext?.resolvedTheme || 'light'
+    }
   } catch (error) {
-    console.warn('ThemeContext not available, using light theme as fallback')
+    // ThemeContextが利用できない場合は安全にlightテーマを使用
     resolvedTheme = 'light'
   }
   

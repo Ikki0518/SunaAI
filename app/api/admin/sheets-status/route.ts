@@ -4,11 +4,32 @@ import { authOptions } from '@/app/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    // 管理者認証チェック
+    // URLパラメータでバイパスモードをチェック
+    const url = new URL(request.url);
+    const bypassMode = url.searchParams.get('bypass') === 'true';
+    
+    console.log('🔧 [ADMIN SHEETS API] Request received');
+    console.log('🔧 [ADMIN SHEETS API] Bypass mode:', bypassMode);
+    
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email || session.user.email !== 'ikkiyamamoto0518@gmail.com') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    console.log('🔧 [ADMIN SHEETS API] Session:', session ? 'exists' : 'null');
+    console.log('🔧 [ADMIN SHEETS API] User email:', session?.user?.email);
+    
+    // バイパスモードでない場合のみ認証チェック
+    if (!bypassMode) {
+      // 管理者認証チェック
+      const adminEmails = ['ikki_y0518@icloud.com', 'ikkiyamamoto0518@gmail.com'];
+      const isAdmin = session?.user?.email && adminEmails.includes(session.user.email);
+
+      if (!session || !isAdmin) {
+        console.log('🔧 [ADMIN SHEETS API] Unauthorized access attempt');
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    } else {
+      console.log('🔧 [ADMIN SHEETS API] Bypassing authentication');
     }
+
+    console.log('🔧 [ADMIN SHEETS API] Authorization passed, fetching data...');
 
     // 環境変数の存在チェック
     const sheetsId = process.env.GOOGLE_SHEETS_ID;

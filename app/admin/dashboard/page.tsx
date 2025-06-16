@@ -89,12 +89,12 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'activities' | 'security' | 'users' | 'sheets'>('overview');
   const [bypassAuth, setBypassAuth] = useState(false);
 
-  // URLパラメータでバイパスモードをチェック
+  // URLパラメータでバイパスモードをチェック（開発環境のみ）
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('bypass') === 'true') {
+    if (urlParams.get('bypass') === 'true' && process.env.NODE_ENV === 'development') {
       setBypassAuth(true);
-      console.log('🔓 [ADMIN DASHBOARD] Bypass mode activated');
+      console.log('🔓 [ADMIN DASHBOARD] Bypass mode activated (development only)');
     }
   }, []);
 
@@ -114,6 +114,7 @@ export default function AdminDashboard() {
     }
     
     if (!session) {
+      console.log('🐛 [ADMIN DASHBOARD] No session found, redirecting to signin');
       router.push('/auth/signin');
       return;
     }
@@ -135,21 +136,33 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      console.log('🔧 [ADMIN DASHBOARD] Starting data fetch...');
       
       // 統計情報を取得（新しいSupabase統合APIを優先）
       try {
-        const statsResponse = await fetch('/api/admin/stats-v2');
+        console.log('📊 [ADMIN DASHBOARD] Fetching stats...');
+        const statsUrl = bypassAuth ? '/api/admin/stats-v2?bypass=true' : '/api/admin/stats-v2';
+        const statsResponse = await fetch(statsUrl);
+        console.log('📊 [ADMIN DASHBOARD] Stats response status:', statsResponse.status);
+        
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
           setStats(statsData);
           console.log('📊 統計データ (Supabase):', statsData);
         } else {
           // フォールバック
-          const fallbackResponse = await fetch('/api/admin/stats');
+          console.log('📊 [ADMIN DASHBOARD] Falling back to original stats API');
+          const fallbackUrl = bypassAuth ? '/api/admin/stats?bypass=true' : '/api/admin/stats';
+          const fallbackResponse = await fetch(fallbackUrl);
+          console.log('📊 [ADMIN DASHBOARD] Fallback stats response status:', fallbackResponse.status);
+          
           if (fallbackResponse.ok) {
             const statsData = await fallbackResponse.json();
             setStats(statsData);
             console.log('📊 統計データ (Fallback):', statsData);
+          } else {
+            const errorText = await fallbackResponse.text();
+            console.error('📊 [ADMIN DASHBOARD] Stats API error:', errorText);
           }
         }
       } catch (error) {
@@ -158,18 +171,29 @@ export default function AdminDashboard() {
 
       // ユーザー活動を取得（新しいSupabase統合APIを優先）
       try {
-        const activitiesResponse = await fetch('/api/admin/activities-v2');
+        console.log('👥 [ADMIN DASHBOARD] Fetching activities...');
+        const activitiesUrl = bypassAuth ? '/api/admin/activities-v2?bypass=true' : '/api/admin/activities-v2';
+        const activitiesResponse = await fetch(activitiesUrl);
+        console.log('👥 [ADMIN DASHBOARD] Activities response status:', activitiesResponse.status);
+        
         if (activitiesResponse.ok) {
           const activitiesData = await activitiesResponse.json();
           setActivities(activitiesData.activities || []);
           console.log('👥 活動データ (Supabase):', activitiesData);
         } else {
           // フォールバック
-          const fallbackResponse = await fetch('/api/admin/activities');
+          console.log('👥 [ADMIN DASHBOARD] Falling back to original activities API');
+          const fallbackUrl = bypassAuth ? '/api/admin/activities?bypass=true' : '/api/admin/activities';
+          const fallbackResponse = await fetch(fallbackUrl);
+          console.log('👥 [ADMIN DASHBOARD] Fallback activities response status:', fallbackResponse.status);
+          
           if (fallbackResponse.ok) {
             const activitiesData = await fallbackResponse.json();
             setActivities(activitiesData.activities || []);
             console.log('👥 活動データ (Fallback):', activitiesData);
+          } else {
+            const errorText = await fallbackResponse.text();
+            console.error('👥 [ADMIN DASHBOARD] Activities API error:', errorText);
           }
         }
       } catch (error) {
@@ -178,18 +202,29 @@ export default function AdminDashboard() {
 
       // セキュリティイベントを取得（新しいSupabase統合APIを優先）
       try {
-        const securityResponse = await fetch('/api/admin/security-events-v2');
+        console.log('🔒 [ADMIN DASHBOARD] Fetching security events...');
+        const securityUrl = bypassAuth ? '/api/admin/security-events-v2?bypass=true' : '/api/admin/security-events-v2';
+        const securityResponse = await fetch(securityUrl);
+        console.log('🔒 [ADMIN DASHBOARD] Security response status:', securityResponse.status);
+        
         if (securityResponse.ok) {
           const securityData = await securityResponse.json();
           setSecurityEvents(securityData.events || securityData);
           console.log('🔒 セキュリティデータ (Supabase):', securityData);
         } else {
           // フォールバック
-          const fallbackResponse = await fetch('/api/admin/security-events');
+          console.log('🔒 [ADMIN DASHBOARD] Falling back to original security API');
+          const fallbackUrl = bypassAuth ? '/api/admin/security-events?bypass=true' : '/api/admin/security-events';
+          const fallbackResponse = await fetch(fallbackUrl);
+          console.log('🔒 [ADMIN DASHBOARD] Fallback security response status:', fallbackResponse.status);
+          
           if (fallbackResponse.ok) {
             const securityData = await fallbackResponse.json();
             setSecurityEvents(securityData);
             console.log('🔒 セキュリティデータ (Fallback):', securityData);
+          } else {
+            const errorText = await fallbackResponse.text();
+            console.error('🔒 [ADMIN DASHBOARD] Security API error:', errorText);
           }
         }
       } catch (error) {
@@ -197,23 +232,46 @@ export default function AdminDashboard() {
       }
 
       // Google Sheets状態を取得
-      const sheetsResponse = await fetch('/api/admin/sheets-status');
-      if (sheetsResponse.ok) {
-        const sheetsData = await sheetsResponse.json();
-        setSheetsStatus(sheetsData);
-        console.log('📊 Google Sheets状態:', sheetsData);
+      try {
+        console.log('📋 [ADMIN DASHBOARD] Fetching Google Sheets status...');
+        const sheetsUrl = bypassAuth ? '/api/admin/sheets-status?bypass=true' : '/api/admin/sheets-status';
+        const sheetsResponse = await fetch(sheetsUrl);
+        console.log('📋 [ADMIN DASHBOARD] Sheets response status:', sheetsResponse.status);
+        
+        if (sheetsResponse.ok) {
+          const sheetsData = await sheetsResponse.json();
+          setSheetsStatus(sheetsData);
+          console.log('📋 Google Sheets状態:', sheetsData);
+        } else {
+          const errorText = await sheetsResponse.text();
+          console.error('📋 [ADMIN DASHBOARD] Sheets API error:', errorText);
+        }
+      } catch (error) {
+        console.error('Google Sheets状態の取得エラー:', error);
       }
 
-      // ユーザー一覧を取得
-      const usersResponse = await fetch('/api/admin/users');
-      if (usersResponse.ok) {
-        const userData = await usersResponse.json();
-        setUsersData(userData);
-        console.log('👥 ユーザーデータ:', userData);
+      // ユーザーデータを取得
+      try {
+        console.log('👤 [ADMIN DASHBOARD] Fetching users data...');
+        const usersUrl = bypassAuth ? '/api/admin/users?bypass=true' : '/api/admin/users';
+        const usersResponse = await fetch(usersUrl);
+        console.log('👤 [ADMIN DASHBOARD] Users response status:', usersResponse.status);
+        
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json();
+          setUsersData(usersData);
+          console.log('👤 ユーザーデータ:', usersData);
+        } else {
+          const errorText = await usersResponse.text();
+          console.error('👤 [ADMIN DASHBOARD] Users API error:', errorText);
+        }
+      } catch (error) {
+        console.error('ユーザーデータの取得エラー:', error);
       }
 
+      console.log('🔧 [ADMIN DASHBOARD] Data fetch completed');
     } catch (error) {
-      console.error('ダッシュボードデータの取得に失敗:', error);
+      console.error('ダッシュボードデータの取得エラー:', error);
     } finally {
       setLoading(false);
     }
@@ -271,12 +329,13 @@ export default function AdminDashboard() {
     }
   };
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">読み込み中...</p>
+          <p className="mt-4 text-gray-600">管理ダッシュボードを読み込み中...</p>
+          <p className="mt-2 text-sm text-gray-500">初回読み込みには少し時間がかかる場合があります</p>
         </div>
       </div>
     );
@@ -287,11 +346,19 @@ export default function AdminDashboard() {
   }
 
   const formatDate = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString('ja-JP');
+    if (!timestamp) return 'Unknown';
+    try {
+      return new Date(timestamp).toLocaleString('ja-JP');
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
   const getActionBadge = (action: string) => {
     const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
+    if (!action) {
+      return `${baseClasses} bg-gray-100 text-gray-800`;
+    }
     if (action === '新規登録' || action === 'signup') {
       return `${baseClasses} bg-green-100 text-green-800`;
     }
@@ -300,6 +367,9 @@ export default function AdminDashboard() {
 
   const getSecurityBadge = (type: string) => {
     const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
+    if (!type) {
+      return `${baseClasses} bg-gray-100 text-gray-800`;
+    }
     switch (type) {
       case 'failed_login':
         return `${baseClasses} bg-red-100 text-red-800`;
@@ -313,343 +383,129 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Suna 管理ダッシュボード</h1>
-              <p className="mt-1 text-sm text-gray-500">
-                ユーザー活動とセキュリティの監視
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              {bypassAuth && (
-                <span className="text-sm text-yellow-600 bg-yellow-100 px-2 py-1 rounded">
-                  🔓 バイパスモード
-                </span>
-              )}
-              <span className="text-sm text-gray-500">
-                管理者: {session?.user?.name || 'バイパスモード'}
-              </span>
-              <button
-                onClick={() => fetchDashboardData()}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-              >
-                更新
-              </button>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+      {/* デバッグ情報表示 */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        {/* バイパスモード警告 */}
+        {bypassAuth && (
+          <div className="mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-yellow-800">バイパスモード有効</h3>
+                <div className="mt-2 text-sm text-yellow-700">
+                  <p>認証チェックをスキップしています。本番環境では使用しないでください。</p>
+                  <p className="mt-1">通常モードに戻すにはURLから ?bypass=true を削除してください。</p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* セッション情報表示（デバッグ用） */}
+        {status !== 'loading' && (
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="text-sm font-medium text-blue-900 mb-2">🔍 デバッグ情報</h3>
+            <div className="text-xs text-blue-800 space-y-1">
+              <p><strong>認証状態:</strong> {status}</p>
+              <p><strong>セッション:</strong> {session ? '有効' : '無効'}</p>
+              <p><strong>ユーザーメール:</strong> {session?.user?.email || 'なし'}</p>
+              <p><strong>管理者権限:</strong> {isAdmin ? '有効' : '無効'}</p>
+              <p><strong>バイパスモード:</strong> {bypassAuth ? '有効' : '無効'}</p>
+            </div>
+            <div className="mt-2">
+              <a 
+                href="/admin/dashboard?bypass=true" 
+                className="inline-flex items-center px-3 py-1 border border-blue-300 shadow-sm text-xs leading-4 font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                バイパスモードで開く
+              </a>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* タブナビゲーション */}
-        <div className="border-b border-gray-200 mb-8">
-          <nav className="-mb-px flex space-x-8">
-            {[
-              { key: 'overview', label: '概要', icon: '📊' },
-              { key: 'activities', label: 'ユーザー活動', icon: '👥' },
-              { key: 'security', label: 'セキュリティ', icon: '🔒' },
-              { key: 'users', label: 'ユーザー管理', icon: '⚙️' },
-              { key: 'sheets', label: 'Google Sheets', icon: '📋' }
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key as any)}
-                className={`${
-                  activeTab === tab.key
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
-              >
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </nav>
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white shadow">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Suna 管理ダッシュボード</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  ユーザー活動とセキュリティの監視
+                </p>
+              </div>
+              <div className="flex items-center space-x-4">
+                {bypassAuth && (
+                  <span className="text-sm text-yellow-600 bg-yellow-100 px-2 py-1 rounded">
+                    🔓 バイパスモード
+                  </span>
+                )}
+                <span className="text-sm text-gray-500">
+                  管理者: {session?.user?.name || 'バイパスモード'}
+                </span>
+                <button
+                  onClick={() => fetchDashboardData()}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  更新
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* 概要タブ */}
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* 統計カード */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="p-5">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
-                        <span className="text-white text-sm">👥</span>
-                      </div>
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
-                          総ユーザー数
-                        </dt>
-                        <dd className="text-lg font-medium text-gray-900">
-                          {stats.totalUsers}
-                        </dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="p-5">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
-                        <span className="text-white text-sm">🔑</span>
-                      </div>
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
-                          総ログイン数
-                        </dt>
-                        <dd className="text-lg font-medium text-gray-900">
-                          {stats.totalLogins}
-                        </dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="p-5">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
-                        <span className="text-white text-sm">📅</span>
-                      </div>
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
-                          今日のログイン
-                        </dt>
-                        <dd className="text-lg font-medium text-gray-900">
-                          {stats.todayLogins}
-                        </dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="p-5">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
-                        <span className="text-white text-sm">✨</span>
-                      </div>
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
-                          今日の新規登録
-                        </dt>
-                        <dd className="text-lg font-medium text-gray-900">
-                          {stats.todaySignups}
-                        </dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 最近の活動 */}
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                  最近の活動
-                </h3>
-                <div className="space-y-3">
-                  {activities.slice(0, 5).map((activity) => (
-                    <div key={activity.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          {activity.imageUrl ? (
-                            <img className="h-8 w-8 rounded-full" src={activity.imageUrl} alt="" />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
-                              <span className="text-xs text-gray-600">
-                                {activity.name.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {activity.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {activity.email}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className={getActionBadge(activity.action)}>
-                          {activity.action}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {formatDate(activity.timestamp)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* タブナビゲーション */}
+          <div className="border-b border-gray-200 mb-8">
+            <nav className="-mb-px flex space-x-8">
+              {[
+                { key: 'overview', label: '概要', icon: '📊' },
+                { key: 'activities', label: 'ユーザー活動', icon: '👥' },
+                { key: 'security', label: 'セキュリティ', icon: '🔒' },
+                { key: 'users', label: 'ユーザー管理', icon: '⚙️' },
+                { key: 'sheets', label: 'Google Sheets', icon: '📋' }
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key as any)}
+                  className={`${
+                    activeTab === tab.key
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+                >
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </nav>
           </div>
-        )}
 
-        {/* ユーザー活動タブ */}
-        {activeTab === 'activities' && (
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                全ユーザー活動履歴
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        ユーザー
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        アクション
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        プロバイダー
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        日時
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {activities.map((activity) => (
-                      <tr key={activity.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10">
-                              {activity.imageUrl ? (
-                                <img className="h-10 w-10 rounded-full" src={activity.imageUrl} alt="" />
-                              ) : (
-                                <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                  <span className="text-sm text-gray-600">
-                                    {activity.name.charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {activity.name}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {activity.email}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={getActionBadge(activity.action)}>
-                            {activity.action}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {activity.provider}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(activity.timestamp)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* セキュリティタブ */}
-        {activeTab === 'security' && (
-          <div className="space-y-6">
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                  セキュリティイベント
-                </h3>
-                {securityEvents.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">
-                    セキュリティイベントはありません
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {securityEvents.map((event) => (
-                      <div key={event.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <span className={getSecurityBadge(event.type)}>
-                              {event.type === 'failed_login' && 'ログイン失敗'}
-                              {event.type === 'suspicious_activity' && '不審な活動'}
-                              {event.type === 'multiple_attempts' && '複数回試行'}
-                            </span>
-                            <span className="text-sm font-medium text-gray-900">
-                              {event.email}
-                            </span>
-                          </div>
-                          <span className="text-xs text-gray-500">
-                            {formatDate(event.timestamp)}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-sm text-gray-600">
-                          {event.details}
-                        </p>
-                        {event.ipAddress && (
-                          <p className="mt-1 text-xs text-gray-500">
-                            IP: {event.ipAddress}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ユーザー管理タブ */}
-        {activeTab === 'users' && (
-          <div className="space-y-6">
-            {/* ユーザー統計 */}
-            {usersData && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* 概要タブ */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* 統計カード */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-white overflow-hidden shadow rounded-lg">
                   <div className="p-5">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
                         <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
-                          <span className="text-white text-sm">📊</span>
+                          <span className="text-white text-sm">👥</span>
                         </div>
                       </div>
                       <div className="ml-5 w-0 flex-1">
                         <dl>
                           <dt className="text-sm font-medium text-gray-500 truncate">
-                            総レコード数
+                            総ユーザー数
                           </dt>
                           <dd className="text-lg font-medium text-gray-900">
-                            {usersData.summary.totalRecords}
+                            {stats.totalUsers}
                           </dd>
                         </dl>
                       </div>
@@ -662,16 +518,16 @@ export default function AdminDashboard() {
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
                         <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
-                          <span className="text-white text-sm">👥</span>
+                          <span className="text-white text-sm">🔑</span>
                         </div>
                       </div>
                       <div className="ml-5 w-0 flex-1">
                         <dl>
                           <dt className="text-sm font-medium text-gray-500 truncate">
-                            ユニークユーザー
+                            総ログイン数
                           </dt>
                           <dd className="text-lg font-medium text-gray-900">
-                            {usersData.summary.uniqueUsers}
+                            {stats.totalLogins}
                           </dd>
                         </dl>
                       </div>
@@ -683,17 +539,39 @@ export default function AdminDashboard() {
                   <div className="p-5">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
-                        <div className="w-8 h-8 bg-red-500 rounded-md flex items-center justify-center">
-                          <span className="text-white text-sm">⚠️</span>
+                        <div className="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
+                          <span className="text-white text-sm">📅</span>
                         </div>
                       </div>
                       <div className="ml-5 w-0 flex-1">
                         <dl>
                           <dt className="text-sm font-medium text-gray-500 truncate">
-                            重複メール
+                            今日のログイン
                           </dt>
                           <dd className="text-lg font-medium text-gray-900">
-                            {usersData.summary.duplicateEmails}
+                            {stats.todayLogins}
+                          </dd>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+                          <span className="text-white text-sm">✨</span>
+                        </div>
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <dl>
+                          <dt className="text-sm font-medium text-gray-500 truncate">
+                            今日の新規登録
+                          </dt>
+                          <dd className="text-lg font-medium text-gray-900">
+                            {stats.todaySignups}
                           </dd>
                         </dl>
                       </div>
@@ -701,260 +579,499 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* 重複警告 */}
-            {usersData && usersData.duplicates.length > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-yellow-900 mb-2">⚠️ 重複メールアドレスが検出されました</h4>
-                <div className="text-sm text-yellow-800">
-                  {usersData.duplicates.map((dup, index) => (
-                    <p key={index}>• {dup.email} ({dup.count}回登録)</p>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 管理機能 */}
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                  管理機能
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <div>
-                      <h4 className="text-sm font-medium text-red-900">ユーザーデータリセット</h4>
-                      <p className="text-sm text-red-700">管理者以外の全ユーザーデータを削除します（取り消し不可）</p>
-                    </div>
-                    <button
-                      onClick={handleResetUsers}
-                      disabled={resetting}
-                      className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {resetting ? '削除中...' : '全ユーザー削除'}
-                    </button>
+              {/* 最近の活動 */}
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                    最近の活動
+                  </h3>
+                  <div className="space-y-3">
+                    {activities.slice(0, 5).map((activity) => (
+                      <div key={activity.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-shrink-0">
+                            {activity.imageUrl ? (
+                              <img className="h-8 w-8 rounded-full" src={activity.imageUrl} alt="" />
+                            ) : (
+                              <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                <span className="text-xs text-gray-600">
+                                  {activity.name ? activity.name.charAt(0).toUpperCase() : 'U'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              {activity.name || 'Unknown User'}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {activity.email || 'No email'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={getActionBadge(activity.action || 'unknown')}>
+                            {activity.action || 'Unknown'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatDate(activity.timestamp)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
+          )}
 
-            {/* ユーザー一覧 */}
+          {/* ユーザー活動タブ */}
+          {activeTab === 'activities' && (
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
                 <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                  登録ユーザー一覧
+                  全ユーザー活動履歴
                 </h3>
-                {usersData && usersData.users.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            ユーザー情報
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            メールアドレス
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            電話番号
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            登録日時
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            ユーザーID
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            操作
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {usersData.users.map((user) => (
-                          <tr key={user.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="flex-shrink-0 h-10 w-10">
-                                  <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                                    <span className="text-white font-medium text-sm">
-                                      {user.name.charAt(0).toUpperCase()}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          ユーザー
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          アクション
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          プロバイダー
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          日時
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {activities.map((activity) => (
+                        <tr key={activity.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10">
+                                {activity.imageUrl ? (
+                                  <img className="h-10 w-10 rounded-full" src={activity.imageUrl} alt="" />
+                                ) : (
+                                  <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                    <span className="text-sm text-gray-600">
+                                      {activity.name ? activity.name.charAt(0).toUpperCase() : 'U'}
                                     </span>
                                   </div>
+                                )}
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {activity.name || 'Unknown User'}
                                 </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {user.name}
-                                  </div>
-                                  <div className="text-sm text-gray-500">
-                                    {user.email === 'ikkiyamamoto0518@gmail.com' || user.email === 'ikki_y0518@icloud.com' ? '管理者' : '一般ユーザー'}
-                                  </div>
+                                <div className="text-sm text-gray-500">
+                                  {activity.email || 'No email'}
                                 </div>
                               </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {user.email}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {user.phone}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {user.registrationDate}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                              {user.id}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {user.email === 'ikkiyamamoto0518@gmail.com' || user.email === 'ikki_y0518@icloud.com' ? (
-                                <span className="text-gray-400">管理者</span>
-                              ) : (
-                                <button
-                                  onClick={() => handleDeleteUser(user.id, user.name)}
-                                  className="text-red-600 hover:text-red-900 transition-colors"
-                                >
-                                  削除
-                                </button>
-                              )}
-                            </td>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={getActionBadge(activity.action || 'unknown')}>
+                              {activity.action || 'Unknown'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {activity.provider || 'Unknown'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {formatDate(activity.timestamp)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* セキュリティタブ */}
+          {activeTab === 'security' && (
+            <div className="space-y-6">
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                    セキュリティイベント
+                  </h3>
+                  {securityEvents.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">
+                      セキュリティイベントはありません
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {securityEvents.map((event) => (
+                        <div key={event.id} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <span className={getSecurityBadge(event.type)}>
+                                {event.type === 'failed_login' && 'ログイン失敗'}
+                                {event.type === 'suspicious_activity' && '不審な活動'}
+                                {event.type === 'multiple_attempts' && '複数回試行'}
+                              </span>
+                              <span className="text-sm font-medium text-gray-900">
+                                {event.email}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {formatDate(event.timestamp)}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm text-gray-600">
+                            {event.details}
+                          </p>
+                          {event.ipAddress && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              IP: {event.ipAddress}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ユーザー管理タブ */}
+          {activeTab === 'users' && (
+            <div className="space-y-6">
+              {/* ユーザー統計 */}
+              {usersData && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white overflow-hidden shadow rounded-lg">
+                    <div className="p-5">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                            <span className="text-white text-sm">📊</span>
+                          </div>
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">
+                              総レコード数
+                            </dt>
+                            <dd className="text-lg font-medium text-gray-900">
+                              {usersData.summary.totalRecords}
+                            </dd>
+                          </dl>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white overflow-hidden shadow rounded-lg">
+                    <div className="p-5">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                            <span className="text-white text-sm">👥</span>
+                          </div>
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">
+                              ユニークユーザー
+                            </dt>
+                            <dd className="text-lg font-medium text-gray-900">
+                              {usersData.summary.uniqueUsers}
+                            </dd>
+                          </dl>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white overflow-hidden shadow rounded-lg">
+                    <div className="p-5">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-red-500 rounded-md flex items-center justify-center">
+                            <span className="text-white text-sm">⚠️</span>
+                          </div>
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">
+                              重複メール
+                            </dt>
+                            <dd className="text-lg font-medium text-gray-900">
+                              {usersData.summary.duplicateEmails}
+                            </dd>
+                          </dl>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 重複警告 */}
+              {usersData && usersData.duplicates.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-yellow-900 mb-2">⚠️ 重複メールアドレスが検出されました</h4>
+                  <div className="text-sm text-yellow-800">
+                    {usersData.duplicates.map((dup, index) => (
+                      <p key={index}>• {dup.email} ({dup.count}回登録)</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 管理機能 */}
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                    管理機能
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div>
+                        <h4 className="text-sm font-medium text-red-900">ユーザーデータリセット</h4>
+                        <p className="text-sm text-red-700">管理者以外の全ユーザーデータを削除します（取り消し不可）</p>
+                      </div>
+                      <button
+                        onClick={handleResetUsers}
+                        disabled={resetting}
+                        className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {resetting ? '削除中...' : '全ユーザー削除'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ユーザー一覧 */}
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                    登録ユーザー一覧
+                  </h3>
+                  {usersData && usersData.users.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              ユーザー情報
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              メールアドレス
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              電話番号
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              登録日時
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              ユーザーID
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              操作
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">登録ユーザーがいません</p>
-                  </div>
-                )}
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {usersData.users.map((user) => (
+                            <tr key={user.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0 h-10 w-10">
+                                    <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
+                                      <span className="text-white font-medium text-sm">
+                                        {user.name.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {user.name}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                      {user.email === 'ikkiyamamoto0518@gmail.com' || user.email === 'ikki_y0518@icloud.com' ? '管理者' : '一般ユーザー'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {user.email}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {user.phone}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {user.registrationDate}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                                {user.id}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {user.email === 'ikkiyamamoto0518@gmail.com' || user.email === 'ikki_y0518@icloud.com' ? (
+                                  <span className="text-gray-400">管理者</span>
+                                ) : (
+                                  <button
+                                    onClick={() => handleDeleteUser(user.id, user.name)}
+                                    className="text-red-600 hover:text-red-900 transition-colors"
+                                  >
+                                    削除
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">登録ユーザーがいません</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Google Sheetsタブ */}
-        {activeTab === 'sheets' && (
-          <div className="space-y-6">
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                  Google Sheets連携状態
-                </h3>
-                
-                {sheetsStatus ? (
-                  <div className="space-y-6">
-                    {/* 連携状態の概要 */}
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-3 h-3 rounded-full ${sheetsStatus.isConfigured ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                      <span className={`font-medium ${sheetsStatus.isConfigured ? 'text-green-700' : 'text-red-700'}`}>
-                        {sheetsStatus.isConfigured ? 'Google Sheets連携が設定されています' : 'Google Sheets連携が設定されていません'}
-                      </span>
+          {/* Google Sheetsタブ */}
+          {activeTab === 'sheets' && (
+            <div className="space-y-6">
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                    Google Sheets連携状態
+                  </h3>
+                  
+                  {sheetsStatus ? (
+                    <div className="space-y-6">
+                      {/* 連携状態の概要 */}
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-3 h-3 rounded-full ${sheetsStatus.isConfigured ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                        <span className={`font-medium ${sheetsStatus.isConfigured ? 'text-green-700' : 'text-red-700'}`}>
+                          {sheetsStatus.isConfigured ? 'Google Sheets連携が設定されています' : 'Google Sheets連携が設定されていません'}
+                        </span>
+                      </div>
+
+                      {/* 設定詳細 */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-2 h-2 rounded-full ${sheetsStatus.configStatus.sheetsId ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                            <span className="text-sm font-medium">スプレッドシートID</span>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {sheetsStatus.configStatus.sheetsId ? '設定済み' : '未設定'}
+                          </p>
+                        </div>
+
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-2 h-2 rounded-full ${sheetsStatus.configStatus.serviceAccountEmail ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                            <span className="text-sm font-medium">サービスアカウント</span>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {sheetsStatus.configStatus.serviceAccountEmail ? '設定済み' : '未設定'}
+                          </p>
+                        </div>
+
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-2 h-2 rounded-full ${sheetsStatus.configStatus.privateKey ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                            <span className="text-sm font-medium">プライベートキー</span>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {sheetsStatus.configStatus.privateKey ? '設定済み' : '未設定'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 接続テスト結果 */}
+                      {sheetsStatus.connectionTest && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h4 className="text-sm font-medium text-blue-900 mb-2">接続状態</h4>
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-2 h-2 rounded-full ${sheetsStatus.connectionTest.status === 'ready' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                            <span className="text-sm text-blue-800">{sheetsStatus.connectionTest.message}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 設定手順 */}
+                      {!sheetsStatus.isConfigured && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                          <h4 className="text-sm font-medium text-yellow-900 mb-2">📋 設定が必要です</h4>
+                          <p className="text-sm text-yellow-800 mb-3">
+                            Google Sheets連携を有効にするには、以下の手順に従って設定してください：
+                          </p>
+                          <ol className="text-sm text-yellow-800 space-y-1 list-decimal list-inside">
+                            <li>Google Cloud Platformでプロジェクトを作成</li>
+                            <li>Google Sheets APIを有効化</li>
+                            <li>サービスアカウントを作成してJSONキーをダウンロード</li>
+                            <li>Google Sheetsを作成してサービスアカウントと共有</li>
+                            <li>環境変数を設定</li>
+                          </ol>
+                          <div className="mt-3">
+                            <a
+                              href="/GOOGLE_SHEETS_SETUP.md"
+                              target="_blank"
+                              className="inline-flex items-center px-3 py-2 border border-yellow-300 shadow-sm text-sm leading-4 font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                            >
+                              📖 詳細な設定手順を見る
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 機能説明 */}
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-gray-900 mb-2">📊 記録される情報</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                          <div>
+                            <h5 className="font-medium text-gray-800">ユーザー登録シート</h5>
+                            <ul className="mt-1 space-y-1 list-disc list-inside">
+                              <li>登録日時</li>
+                              <li>メールアドレス</li>
+                              <li>ユーザー名</li>
+                              <li>ログイン方法</li>
+                            </ul>
+                          </div>
+                          <div>
+                            <h5 className="font-medium text-gray-800">アクティビティログシート</h5>
+                            <ul className="mt-1 space-y-1 list-disc list-inside">
+                              <li>ログイン履歴</li>
+                              <li>アクション詳細</li>
+                              <li>タイムスタンプ</li>
+                              <li>ユーザー情報</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-
-                    {/* 設定詳細 */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${sheetsStatus.configStatus.sheetsId ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          <span className="text-sm font-medium">スプレッドシートID</span>
-                        </div>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {sheetsStatus.configStatus.sheetsId ? '設定済み' : '未設定'}
-                        </p>
-                      </div>
-
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${sheetsStatus.configStatus.serviceAccountEmail ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          <span className="text-sm font-medium">サービスアカウント</span>
-                        </div>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {sheetsStatus.configStatus.serviceAccountEmail ? '設定済み' : '未設定'}
-                        </p>
-                      </div>
-
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${sheetsStatus.configStatus.privateKey ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          <span className="text-sm font-medium">プライベートキー</span>
-                        </div>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {sheetsStatus.configStatus.privateKey ? '設定済み' : '未設定'}
-                        </p>
-                      </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="mt-2 text-gray-500">Google Sheets状態を確認中...</p>
                     </div>
-
-                    {/* 接続テスト結果 */}
-                    {sheetsStatus.connectionTest && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-blue-900 mb-2">接続状態</h4>
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${sheetsStatus.connectionTest.status === 'ready' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          <span className="text-sm text-blue-800">{sheetsStatus.connectionTest.message}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 設定手順 */}
-                    {!sheetsStatus.isConfigured && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-yellow-900 mb-2">📋 設定が必要です</h4>
-                        <p className="text-sm text-yellow-800 mb-3">
-                          Google Sheets連携を有効にするには、以下の手順に従って設定してください：
-                        </p>
-                        <ol className="text-sm text-yellow-800 space-y-1 list-decimal list-inside">
-                          <li>Google Cloud Platformでプロジェクトを作成</li>
-                          <li>Google Sheets APIを有効化</li>
-                          <li>サービスアカウントを作成してJSONキーをダウンロード</li>
-                          <li>Google Sheetsを作成してサービスアカウントと共有</li>
-                          <li>環境変数を設定</li>
-                        </ol>
-                        <div className="mt-3">
-                          <a
-                            href="/GOOGLE_SHEETS_SETUP.md"
-                            target="_blank"
-                            className="inline-flex items-center px-3 py-2 border border-yellow-300 shadow-sm text-sm leading-4 font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-                          >
-                            📖 詳細な設定手順を見る
-                          </a>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 機能説明 */}
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">📊 記録される情報</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                        <div>
-                          <h5 className="font-medium text-gray-800">ユーザー登録シート</h5>
-                          <ul className="mt-1 space-y-1 list-disc list-inside">
-                            <li>登録日時</li>
-                            <li>メールアドレス</li>
-                            <li>ユーザー名</li>
-                            <li>ログイン方法</li>
-                          </ul>
-                        </div>
-                        <div>
-                          <h5 className="font-medium text-gray-800">アクティビティログシート</h5>
-                          <ul className="mt-1 space-y-1 list-disc list-inside">
-                            <li>ログイン履歴</li>
-                            <li>アクション詳細</li>
-                            <li>タイムスタンプ</li>
-                            <li>ユーザー情報</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-2 text-gray-500">Google Sheets状態を確認中...</p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

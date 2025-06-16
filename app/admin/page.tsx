@@ -26,12 +26,12 @@ export default function AdminDashboard() {
     'ikkiyamamoto0518@gmail.com'
   ];
   
-  // URLパラメータでバイパスモードをチェック
+  // URLパラメータでバイパスモードをチェック（開発環境のみ）
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('bypass') === 'true') {
+    if (urlParams.get('bypass') === 'true' && process.env.NODE_ENV === 'development') {
       setBypassAuth(true);
-      console.log('🔓 [ADMIN PAGE] Bypass mode activated');
+      console.log('🔓 [ADMIN] Bypass mode activated (development only)');
     }
   }, []);
   

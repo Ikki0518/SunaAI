@@ -127,6 +127,15 @@ export async function getStats() {
 export async function recordLoginHistory(...args: any[]) {}
 export async function recordUserActivity(...args: any[]) {}
 export async function recordSecurityEvent(...args: any[]) {}
+// Supabaseにログイン履歴を追加
+export async function insertSupabaseLoginHistory({ user_id, user_email, action }: { user_id: string, user_email: string, action: string }) {
+  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  const { data, error } = await supabaseAdmin
+    .from('login_history')
+    .insert([{ user_id, user_email, action }]);
+  if (error) throw error;
+  return data;
+}
 // Supabaseに新規ユーザーを追加
 export async function insertSupabaseUser({ phone, email, name, passwordHash }: { phone: string, email: string, name: string, passwordHash: string }) {
   if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');

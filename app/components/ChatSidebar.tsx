@@ -124,7 +124,7 @@ export default function ChatSidebar({
 
   return (
     <>
-      {/* サイドバー - シンプル表示 */}
+      {/* サイドバー - デスクトップ用 */}
       <div 
         className={`
           fixed top-0 left-0 h-full z-40
@@ -160,7 +160,7 @@ export default function ChatSidebar({
           </button>
         </div>
 
-        {/* サイドバーコンテンツ */}
+        {/* サイドバーコンテンツ - 常にDOMに存在、CSSでアニメーション制御 */}
         <div className={`h-full flex flex-col transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
           {/* ヘッダー */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200">

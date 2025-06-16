@@ -389,70 +389,142 @@ export default function AdminDashboard() {
 
         {/* メインコンテンツ（パディングトップでヘッダー分を考慮） */}
         <div className="pt-16 px-4 py-6">
-          {/* 統計カード（概要タブ） */}
+          {/* モバイル専用：カード形式ダッシュボード */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* 統計情報 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-lg">👥</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">総ユーザー</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
-                    </div>
+              {/* 統計概要 */}
+              <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">📊 サイト統計</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-blue-600">{stats.totalUsers}</div>
+                    <div className="text-sm text-gray-500">総ユーザー</div>
                   </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-lg">🔑</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">ログイン数</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.totalLogins}</p>
-                    </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-green-600">{stats.totalLogins}</div>
+                    <div className="text-sm text-gray-500">総ログイン</div>
                   </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-lg">📅</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">今日</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.todayLogins}</p>
-                    </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-yellow-600">{stats.todayLogins}</div>
+                    <div className="text-sm text-gray-500">今日のログイン</div>
                   </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-lg">✨</span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">新規</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.todaySignups}</p>
-                    </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-purple-600">{stats.todaySignups}</div>
+                    <div className="text-sm text-gray-500">今日の新規</div>
                   </div>
                 </div>
               </div>
 
-              {/* 最近の活動 */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-                <div className="p-4 border-b border-gray-100">
+              {/* 管理機能カード */}
+              <div className="space-y-4">
+                <h2 className="text-xl font-bold text-gray-900">⚙️ 管理機能</h2>
+                
+                {/* ユーザー活動カード */}
+                <button
+                  onClick={() => setActiveTab('activities')}
+                  className="w-full bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                      <span className="text-white text-xl">👥</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">ユーザー活動</h3>
+                      <p className="text-sm text-gray-500">ログイン履歴や活動状況を確認</p>
+                    </div>
+                    <div className="text-gray-400">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </button>
+
+                {/* セキュリティカード */}
+                <button
+                  onClick={() => setActiveTab('security')}
+                  className="w-full bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center">
+                      <span className="text-white text-xl">🔒</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">セキュリティ監視</h3>
+                      <p className="text-sm text-gray-500">不正アクセスやセキュリティイベント</p>
+                      <p className="text-xs text-red-600 mt-1">{securityEvents.length}件のイベント</p>
+                    </div>
+                    <div className="text-gray-400">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </button>
+
+                {/* ユーザー管理カード */}
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className="w-full bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+                      <span className="text-white text-xl">⚙️</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">ユーザー管理</h3>
+                      <p className="text-sm text-gray-500">登録ユーザーの管理と削除</p>
+                      <p className="text-xs text-green-600 mt-1">{usersData?.users?.length || 0}名のユーザー</p>
+                    </div>
+                    <div className="text-gray-400">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Google Sheetsカード */}
+                <button
+                  onClick={() => setActiveTab('sheets')}
+                  className="w-full bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center">
+                      <span className="text-white text-xl">📋</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">Google Sheets連携</h3>
+                      <p className="text-sm text-gray-500">データエクスポートと設定</p>
+                      <p className={`text-xs mt-1 ${sheetsStatus?.isConfigured ? 'text-green-600' : 'text-yellow-600'}`}>
+                        {sheetsStatus?.isConfigured ? '設定済み' : '未設定'}
+                      </p>
+                    </div>
+                    <div className="text-gray-400">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* 最近の活動プレビュー */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+                <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900">最近の活動</h3>
+                  <button
+                    onClick={() => setActiveTab('activities')}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    すべて見る
+                  </button>
                 </div>
                 <div className="p-4 space-y-3">
-                  {activities.slice(0, 5).map((activity, index) => (
-                    <div key={activity.id} className="flex items-center space-x-3 py-2">
-                      <div className="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm">
+                  {activities.slice(0, 3).map((activity, index) => (
+                    <div key={activity.id} className="flex items-center space-x-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs">
                           {activity.name ? activity.name.charAt(0).toUpperCase() : 'U'}
                         </span>
                       </div>
@@ -464,14 +536,11 @@ export default function AdminDashboard() {
                           {activity.action || 'Unknown'} • {formatDate(activity.timestamp)}
                         </p>
                       </div>
-                      <div className="flex-shrink-0">
-                        {getActionBadge(activity.action || 'unknown')}
-                      </div>
                     </div>
                   ))}
                   {activities.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <p className="text-sm">まだ活動履歴がありません</p>
+                    <div className="text-center py-4 text-gray-500">
+                      <p className="text-sm">活動履歴がありません</p>
                     </div>
                   )}
                 </div>
@@ -659,7 +728,6 @@ export default function AdminDashboard() {
               </div>
               <div className="p-4 space-y-2">
                 {[
-                  { key: 'overview', label: '概要', icon: '📊' },
                   { key: 'activities', label: 'ユーザー活動', icon: '👥' },
                   { key: 'security', label: 'セキュリティ', icon: '🔒' },
                   { key: 'users', label: 'ユーザー管理', icon: '⚙️' },

@@ -70,3 +70,39 @@ export async function getSupabaseUsers() {
   if (error) throw error;
   return data || [];
 }
+
+// ユーザーアクティビティ取得
+export async function getUserActivities(limit: number = 100) {
+  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  const { data, error } = await supabaseAdmin
+    .from('user_activities')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+// ログイン履歴取得
+export async function getLoginHistory(limit: number = 100) {
+  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  const { data, error } = await supabaseAdmin
+    .from('login_history')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+// セキュリティイベント取得
+export async function getSecurityEvents(limit: number = 100) {
+  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  const { data, error } = await supabaseAdmin
+    .from('security_events')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}

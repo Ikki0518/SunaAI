@@ -110,7 +110,20 @@ export default function UserMenu() {
                 </svg>
                 <span>プロフィール</span>
               </button>
-              
+
+              {/* 管理者のみ表示 */}
+              {['ikki_y0518@icloud.com', 'ikkiyamamoto0518@gmail.com'].includes(session.user.email ?? '') && (
+                <button
+                  onClick={() => router.push('/admin')}
+                  className="w-full flex items-center space-x-2 px-3 py-2 text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors font-bold"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+                  </svg>
+                  <span>管理者サイトへ</span>
+                </button>
+              )}
+
               <button
                 onClick={handleSettingsClick}
                 className="w-full flex items-center space-x-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"

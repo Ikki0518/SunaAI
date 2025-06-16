@@ -3,7 +3,6 @@ import { signIn, getSession } from "next-auth/react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import SunaLogo from '@/app/components/SunaLogo'
-import ForceAdminButton from '@/app/components/ForceAdminButton'
 
 export default function SignIn() {
   const router = useRouter()
@@ -123,8 +122,6 @@ export default function SignIn() {
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      {/* 強制管理者ボタン - ログインページでも表示 */}
-      <ForceAdminButton />
       
       {/* 管理者用直接アクセスボタン */}
       <div className="fixed bottom-5 right-5 z-[9999999]">

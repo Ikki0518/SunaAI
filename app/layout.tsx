@@ -3,7 +3,6 @@ import { Geist, Geist_Mono, Dancing_Script } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "./providers/AuthProvider";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import ForceAdminButton from "./components/ForceAdminButton";
 
 // CACHE BUSTER: 2025-06-14 12:45 - FORCE LAYOUT REFRESH
 
@@ -40,8 +39,6 @@ export default function RootLayout({
       >
         <AuthProvider>
           <ThemeProvider>
-            {/* 全ページで管理者ボタンを表示 */}
-            <ForceAdminButton />
             
             {children}
           </ThemeProvider>

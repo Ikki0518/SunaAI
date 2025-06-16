@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import UserMenu from './components/UserMenu';
 import ChatSidebar from './components/ChatSidebar';
 import SunaLogo from '@/app/components/SunaLogo';
-import ForceAdminButton from '@/app/components/ForceAdminButton';
 import { ChatSession, ChatMessage } from '@/app/types/chat';
 import { ChatHistoryManager } from '@/app/utils/chatHistory';
 
@@ -238,10 +237,6 @@ export default function ChatPage() {
 
   return (
     <div className="h-screen bg-white relative overflow-hidden">
-      {/* 強制管理者ボタン - 複数配置で確実に表示 */}
-      <ForceAdminButton />
-      <ForceAdminButton />
-      <ForceAdminButton />
       
       {/* メインコンテンツ */}
       <div

@@ -14,6 +14,13 @@ import { googleSheetsService } from "./googleSheets"
 import { loginHistoryService } from "./loginHistoryService"
 
 export const authOptions = {
+  session: {
+    strategy: "jwt" as const,
+  },
+  pages: {
+    signIn: '/auth/signin',
+    signOut: '/auth/signin',
+  },
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -98,5 +105,25 @@ export const authOptions = {
       }
     })
   ],
-  // ...（他のauthOptions設定はそのまま）
+  callbacks: {
+    async jwt({ token, user }: { token: any, user: any }) {
+      // 初回ログイン時にuser情報をtokenに保存
+      if (user) {
+        token.id = user.id;
+        token.name = user.name;
+        token.email = user.email;
+      }
+      return token;
+    },
+    async session({ session, token, user }: { session: any, token: any, user: any }) {
+      // Supabaseのuser.idをセッションに必ずセット
+      if (session.user && token) {
+        session.user.id = token.id || token.sub;
+        session.user.name = token.name;
+        session.user.email = token.email;
+      }
+      return session;
+    },
+    // ...他のコールバック
+  }
 }

@@ -61,20 +61,31 @@ export default function SettingsPage() {
     try {
       // プロフィール更新
       if (formData.name !== (session?.user?.name || "")) {
-        const response = await fetch('/api/profile', {
+        // 開発モードでバイパス機能を使用するかチェック
+        const isDevelopment = process.env.NODE_ENV === 'development';
+        const useBypass = !session?.user?.id && isDevelopment;
+        
+        const profileUrl = useBypass ? '/api/profile?bypass=true' : '/api/profile';
+        
+        const response = await fetch(profileUrl, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             name: formData.name,
+            userEmail: session?.user?.email // emailも送信してユーザー特定を支援
           }),
         });
 
         if (!response.ok) {
           const data = await response.json();
+          console.error('❌ [SETTINGS] Profile update failed:', data);
           throw new Error(data.error || "プロフィール更新に失敗しました");
         }
+        
+        const responseData = await response.json();
+        console.log('✅ [SETTINGS] Profile updated successfully:', responseData);
       }
 
       // テーマ変更
@@ -91,7 +102,7 @@ export default function SettingsPage() {
       }, 1000);
       
     } catch (error: any) {
-      console.error('Settings save error:', error);
+      console.error('❌ [SETTINGS] Settings save error:', error);
       setMessage(error.message || "設定の保存に失敗しました。");
     } finally {
       setLoading(false);
@@ -144,6 +155,30 @@ export default function SettingsPage() {
         )}
 
         <div className="space-y-8">
+          {/* デバッグ情報 (開発モードのみ) */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-800 p-6">
+              <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4 flex items-center">
+                <span className="mr-2">🔍</span>
+                デバッグ情報
+              </h2>
+              <div className="space-y-2 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-blue-800 dark:text-blue-200"><strong>セッション状態:</strong> {session ? '有効' : '無効'}</p>
+                    <p className="text-blue-800 dark:text-blue-200"><strong>ユーザーID:</strong> {session?.user?.id || '未設定'}</p>
+                    <p className="text-blue-800 dark:text-blue-200"><strong>ユーザー名:</strong> {session?.user?.name || '未設定'}</p>
+                  </div>
+                  <div>
+                    <p className="text-blue-800 dark:text-blue-200"><strong>メールアドレス:</strong> {session?.user?.email || '未設定'}</p>
+                    <p className="text-blue-800 dark:text-blue-200"><strong>変更あり:</strong> {hasChanges ? 'あり' : 'なし'}</p>
+                    <p className="text-blue-800 dark:text-blue-200"><strong>バイパス対象:</strong> {!session?.user?.id ? 'はい' : 'いいえ'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* プロフィール設定 */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-8">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">プロフィール</h2>

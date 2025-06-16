@@ -203,3 +203,15 @@ export async function getSupabaseChatMessages(session_id: string) {
   if (error) throw error;
   return data || [];
 }
+// Supabaseでユーザー名を更新
+export async function updateSupabaseUserName(user_id: string, name: string) {
+  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  const { data, error } = await supabaseAdmin
+    .from('users')
+    .update({ name })
+    .eq('id', user_id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}

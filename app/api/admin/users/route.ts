@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/lib/auth';
-import { userServiceServer } from '@/app/lib/userServiceServer';
+import { getSupabaseUsers } from '@/app/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 全ユーザーを取得
-    const users = await userServiceServer.getAllUsers();
+    // Supabaseから全ユーザーを取得
+    const users = await getSupabaseUsers();
     
     // パスワードを除外して返す
     const safeUsers = users.map(user => ({

@@ -256,7 +256,7 @@ export default function MobileChatPage() {
             onKeyDown={handleKeyPress}
             rows={1}
             style={{ fontSize: '16px' }} // iOS Safari ズーム防止
-            className="flex-1 resize-none px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50 text-sm"
+            className="flex-1 resize-none px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white text-gray-900 text-sm placeholder-gray-500"
             placeholder="メッセージを入力..."
             disabled={loading}
           />

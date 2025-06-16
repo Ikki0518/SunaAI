@@ -22,7 +22,6 @@ export const supabaseAdmin = isSupabaseConfigured && supabaseServiceRoleKey
     })
   : null as any
 
-// Supabaseが設定されているかを確認する関数
 export function isSupabaseEnabled(): boolean {
   return !!isSupabaseConfigured
 }
@@ -106,6 +105,7 @@ export async function getSecurityEvents(limit: number = 100) {
   if (error) throw error;
   return data || [];
 }
+
 // 統計情報取得
 export async function getStats() {
   if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
@@ -127,15 +127,7 @@ export async function getStats() {
 export async function recordLoginHistory(...args: any[]) {}
 export async function recordUserActivity(...args: any[]) {}
 export async function recordSecurityEvent(...args: any[]) {}
-// Supabaseにログイン履歴を追加
-export async function insertSupabaseLoginHistory({ user_id, user_email, action }: { user_id: string, user_email: string, action: string }) {
-  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
-  const { data, error } = await supabaseAdmin
-    .from('login_history')
-    .insert([{ user_id, user_email, action }]);
-  if (error) throw error;
-  return data;
-}
+
 // Supabaseに新規ユーザーを追加
 export async function insertSupabaseUser({ phone, email, name, passwordHash }: { phone: string, email: string, name: string, passwordHash: string }) {
   if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
@@ -145,6 +137,7 @@ export async function insertSupabaseUser({ phone, email, name, passwordHash }: {
   if (error) throw error;
   return data;
 }
+
 // Supabaseからemailでユーザーを取得
 export async function getSupabaseUserByEmail(email: string) {
   if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
@@ -155,4 +148,58 @@ export async function getSupabaseUserByEmail(email: string) {
     .single();
   if (error) return null;
   return data;
+}
+
+// Supabaseにログイン履歴を追加
+export async function insertSupabaseLoginHistory({ user_id, user_email, action }: { user_id: string, user_email: string, action: string }) {
+  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  const { data, error } = await supabaseAdmin
+    .from('login_history')
+    .insert([{ user_id, user_email, action }]);
+  if (error) throw error;
+  return data;
+}
+
+// Supabaseにチャットセッションを保存
+export async function saveSupabaseChatSession(session: any) {
+  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  const { data, error } = await supabaseAdmin
+    .from('chat_sessions')
+    .upsert([session], { onConflict: 'id' });
+  if (error) throw error;
+  return data;
+}
+
+// Supabaseからユーザーのチャットセッション一覧を取得
+export async function getSupabaseChatSessions(user_id: string) {
+  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  const { data, error } = await supabaseAdmin
+    .from('chat_sessions')
+    .select('*')
+    .eq('user_id', user_id)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+// Supabaseにチャットメッセージを保存
+export async function saveSupabaseChatMessage(message: any) {
+  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  const { data, error } = await supabaseAdmin
+    .from('chat_messages')
+    .insert([message]);
+  if (error) throw error;
+  return data;
+}
+
+// Supabaseからチャットセッションのメッセージ一覧を取得
+export async function getSupabaseChatMessages(session_id: string) {
+  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  const { data, error } = await supabaseAdmin
+    .from('chat_messages')
+    .select('*')
+    .eq('session_id', session_id)
+    .order('timestamp', { ascending: true });
+  if (error) throw error;
+  return data || [];
 }

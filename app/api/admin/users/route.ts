@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/lib/auth';
 import { getSupabaseUsers } from '@/app/lib/supabase';
+// 型定義がなければanyで一時対応
+// import type { User } from '@/app/types/user';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Supabaseから全ユーザーを取得
-    const users = await getSupabaseUsers();
+    const users: any[] = await getSupabaseUsers();
     
     // パスワードを除外して返す
     const safeUsers = users.map(user => ({
@@ -58,61 +60,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  try {
-    // 管理者認証チェック
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email ||
-        (session.user.email !== 'ikkiyamamoto0518@gmail.com' &&
-         session.user.email !== 'ikki_y0518@icloud.com')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const action = searchParams.get('action');
-    const userId = searchParams.get('userId');
-
-    if (action === 'reset') {
-      // 全ユーザーデータをリセット（管理者以外）
-      const result = await userServiceServer.resetAllUsers();
-      
-      return NextResponse.json({
-        message: 'ユーザーデータをリセットしました',
-        deletedCount: result.deletedCount,
-        remainingUsers: result.remainingUsers
-      });
-    }
-
-    if (action === 'deleteUser' && userId) {
-      // 個別ユーザー削除
-      const user = await userServiceServer.getUserById(userId);
-      if (!user) {
-        return NextResponse.json({ error: 'ユーザーが見つかりません' }, { status: 404 });
-      }
-
-      // 管理者の削除を防ぐ
-      if (user.email === 'ikkiyamamoto0518@gmail.com' || user.email === 'ikki_y0518@icloud.com') {
-        return NextResponse.json({ error: '管理者ユーザーは削除できません' }, { status: 403 });
-      }
-
-      const result = await userServiceServer.deleteUser(userId);
-      
-      return NextResponse.json({
-        message: 'ユーザーを削除しました',
-        deletedUser: {
-          id: user.id,
-          name: user.name,
-          email: user.email
-        }
-      });
-    }
-
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-
-  } catch (error) {
-    console.error('ユーザー削除エラー:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  // Supabase連携未実装: 一時的にエラーを返す
+  return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
 }

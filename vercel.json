@@ -6,7 +6,7 @@
   "framework": "nextjs",
   "env": {
     "NEXTAUTH_URL": "https://suna-ai-nine.vercel.app",
-    "NEXTAUTH_SECRET": "@nextauth_secret"
+    "NEXTAUTH_SECRET": "my-super-secret-key-for-nextauth-development-32chars"
   },
   "functions": {
     "app/api/**/*.ts": {

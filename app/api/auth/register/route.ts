@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { userServiceServer } from '@/app/lib/userServiceServer'
 import { logSecurityEvent } from '@/app/api/admin/security-events/route'
+import { supabaseAdmin, insertSupabaseUser } from '@/app/lib/supabase'
 import {
   recordFailedAttempt,
   isBlocked,
@@ -56,16 +56,26 @@ export async function POST(request: NextRequest) {
     }
 
     // 重複チェック
-    const existingUserByPhone = await userServiceServer.getUserByPhone(phone)
-    if (existingUserByPhone) {
+    // Supabaseで電話番号重複チェック
+    const { data: phoneDup, error: phoneDupError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('phone', phone);
+    if (phoneDupError) throw phoneDupError;
+    if (phoneDup && phoneDup.length > 0) {
       return NextResponse.json(
         { error: 'この電話番号は既に登録されています' },
         { status: 409 }
       )
     }
     
-    const existingUserByEmail = await userServiceServer.getUserByEmail(email)
-    if (existingUserByEmail) {
+    // Supabaseでメールアドレス重複チェック
+    const { data: emailDup, error: emailDupError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', email);
+    if (emailDupError) throw emailDupError;
+    if (emailDup && emailDup.length > 0) {
       return NextResponse.json(
         { error: 'このメールアドレスは既に登録されています' },
         { status: 409 }
@@ -75,42 +85,18 @@ export async function POST(request: NextRequest) {
     // パスワードハッシュ化
     const hashedPassword = await bcrypt.hash(password, 12)
     
-    // ユーザー作成
-    const user = await userServiceServer.createUser({
+    // ユーザー作成（Supabaseにinsert）
+    await insertSupabaseUser({
       phone,
       email,
-      password: hashedPassword,
-      name: email.split("@")[0], // メールの@より前を名前とする
-    })
-
-    // 新規登録通知を送信（非同期で実行、エラーでも処理を継続）
-    notifyNewUserRegistration(user.email, user.name, user.id).catch(error => {
-      console.error('🔔 [NOTIFICATION] 新規登録通知の送信に失敗:', error)
-    })
-
-    // ローカルログイン履歴に新規登録を記録
-    loginHistoryService.recordLogin(user.id, user.email, user.name, 'signup');
-
-    // Google Sheetsに新規登録データを記録（非同期で実行、エラーでも処理を継続）
-    googleSheetsService.addUserRegistration({
-      email: user.email,
-      name: user.name,
-      registrationDate: new Date().toISOString(),
-      loginMethod: 'credentials'
-    }).catch(error => {
-      console.error('📊 [SHEETS] Google Sheetsへの記録に失敗:', error)
-    })
+      name: email.split("@")[0],
+      passwordHash: hashedPassword
+    });
 
     return NextResponse.json(
-      { 
+      {
         success: true,
-        message: '新規登録が完了しました！電話番号とパスワードでログインしてください。',
-        user: {
-          id: user.id,
-          email: user.email,
-          phone: user.phone,
-          name: user.name
-        }
+        message: '新規登録が完了しました！電話番号とパスワードでログインしてください。'
       },
       { status: 201 }
     )

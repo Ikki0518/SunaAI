@@ -14,43 +14,6 @@ export default function ChatPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  // 管理者権限チェック（複数の方法で確認）
-  const userEmail = session?.user?.email?.toLowerCase().trim();
-  const isAdminByEmail = userEmail === 'ikki_y0518@icloud.com' || userEmail === 'ikkiyamamoto0518@gmail.com';
-  const isAdminBySession = (session?.user as any)?.isAdmin === true || (session?.user as any)?.role === 'admin';
-  const isAdminById = session?.user?.id?.startsWith('admin-');
-  const isAdmin = isAdminByEmail || isAdminBySession || isAdminById;
-  
-  // 強制的に管理者ボタンを表示（複数条件）
-  const forceShowAdminButton = isAdmin || session?.user?.email === 'ikki_y0518@icloud.com';
-  
-  // 本番環境でのデバッグ用：管理者ボタンの表示状態を画面に表示
-  const showDebugInfo = true; // 本番環境でのテスト用
-  
-  // デバッグ情報（本番環境でも表示）
-  useEffect(() => {
-    if (session?.user?.email) {
-      console.log('🐛 [DEBUG] Current user email:', session.user.email);
-      console.log('🐛 [DEBUG] User email (processed):', userEmail);
-      console.log('🐛 [DEBUG] User ID:', session.user.id);
-      console.log('🐛 [DEBUG] Full session user:', session.user);
-      console.log('🐛 [DEBUG] Admin checks:', {
-        isAdminByEmail,
-        isAdminBySession,
-        isAdminById,
-        isAdmin,
-        forceShowAdminButton
-      });
-      console.log('🐛 [DEBUG] Session details:', {
-        originalEmail: session.user.email,
-        processedEmail: userEmail,
-        userId: session.user.id,
-        userIdStartsWithAdmin: session.user.id?.startsWith('admin-'),
-        sessionUserIsAdmin: (session.user as any)?.isAdmin,
-        sessionUserRole: (session.user as any)?.role
-      });
-    }
-  }, [session, isAdmin, userEmail, forceShowAdminButton, isAdminByEmail, isAdminBySession, isAdminById]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -58,7 +21,6 @@ export default function ChatPage() {
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
 
   // SSR回避
   useEffect(() => {
@@ -89,40 +51,6 @@ export default function ChatPage() {
     }
   }, [mounted]);
 
-  // ドロップダウンメニューの外部クリック処理
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (adminDropdownOpen) {
-        const target = event.target as Element;
-        if (!target.closest('.admin-dropdown')) {
-          setAdminDropdownOpen(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [adminDropdownOpen]);
-
-  // 管理者権限チェック関数
-  const checkAdminAccess = useCallback((targetPath: string) => {
-    if (!session?.user?.email) {
-      alert('ログインが必要です');
-      return;
-    }
-    
-    const userEmail = session.user.email.toLowerCase().trim();
-    const adminEmails = ['ikki_y0518@icloud.com', 'ikkiyamamoto0518@gmail.com'];
-    
-    if (adminEmails.includes(userEmail)) {
-      router.push(targetPath);
-      setAdminDropdownOpen(false);
-    } else {
-      alert('管理者権限が必要です。このアカウントでは管理者機能にアクセスできません。');
-    }
-  }, [session, router]);
 
   // セッション保存
   const saveCurrentSession = useCallback(() => {
@@ -244,54 +172,6 @@ export default function ChatPage() {
           sidebarOpen ? 'ml-80' : 'ml-16'
         }`}
       >
-        {/* 最上部管理者アクセスバー */}
-        {session?.user?.email && (
-          <div className="bg-yellow-400 text-black px-6 py-2 text-center font-bold">
-            🚨 管理者テスト中: {session.user.email}
-            <a
-              href="/admin"
-              className="ml-4 px-4 py-1 bg-black text-yellow-400 rounded hover:bg-gray-800 transition-colors"
-            >
-              管理者ダッシュボード
-            </a>
-          </div>
-        )}
-        
-        {/* 大きな管理者アクセスボタン - 確実に表示 */}
-        {session?.user?.email === 'ikki_y0518@icloud.com' && (
-          <div className="fixed top-20 right-5 z-[9999999]">
-            <a
-              href="/admin"
-              className="block bg-red-600 text-white px-8 py-4 rounded-lg shadow-2xl hover:bg-red-700 transition-all transform hover:scale-105 text-xl font-bold border-4 border-white"
-            >
-              🚨 管理者ダッシュボード 🚨
-            </a>
-          </div>
-        )}
-        
-        {/* バイパスボタン - 全ユーザーに表示 */}
-        {session?.user?.email && (
-          <div className="fixed bottom-20 left-5 z-[9999999]">
-            <a
-              href="/admin?bypass=true"
-              className="block bg-purple-600 text-white px-6 py-3 rounded-lg shadow-2xl hover:bg-purple-700 transition-all transform hover:scale-105 font-bold border-2 border-yellow-400"
-            >
-              🔓 管理者ダッシュボード（バイパス）
-            </a>
-          </div>
-        )}
-        
-        {/* バイパスボタン - 全ユーザーに表示 */}
-        {session?.user?.email && (
-          <div className="fixed bottom-20 left-5 z-[9999999]">
-            <a
-              href="/admin?bypass=true"
-              className="block bg-purple-600 text-white px-6 py-3 rounded-lg shadow-2xl hover:bg-purple-700 transition-all transform hover:scale-105 font-bold border-2 border-yellow-400"
-            >
-              🔓 管理者ダッシュボード（バイパス）
-            </a>
-          </div>
-        )}
         {/* ヘッダー */}
         <div className="sticky top-0 z-[60] bg-white border-b border-gray-100">
           <div className="px-6 py-4">
@@ -302,88 +182,6 @@ export default function ChatPage() {
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                {/* デバッグ情報表示（常に表示） */}
-                {session && (
-                  <div className="text-xs bg-yellow-100 border border-yellow-300 rounded px-3 py-2 mr-2 max-w-md">
-                    <div className="font-bold mb-1">🐛 DEBUG INFO</div>
-                    <div>Original: {session.user.email}</div>
-                    <div>Processed: {userEmail}</div>
-                    <div className={`font-bold ${isAdmin ? 'text-green-600' : 'text-red-600'}`}>
-                      Admin: {isAdmin ? 'YES ✅' : 'NO ❌'}
-                    </div>
-                    <div className={`font-bold ${forceShowAdminButton ? 'text-green-600' : 'text-red-600'}`}>
-                      Force Show: {forceShowAdminButton ? 'YES ✅' : 'NO ❌'}
-                    </div>
-                    {/* 緊急アクセス用リンク */}
-                    {forceShowAdminButton && (
-                      <div className="mt-2 pt-2 border-t border-yellow-400">
-                        <button
-                          onClick={() => checkAdminAccess('/admin')}
-                          className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600"
-                        >
-                          🚨 緊急管理者アクセス
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {/* 管理者ボタン - 絶対に表示 */}
-                {session && (
-                  <div className="relative admin-dropdown">
-                    <button
-                      onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}
-                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:from-purple-600 hover:to-blue-600 transition-all duration-200 flex items-center space-x-2 text-sm font-medium shadow-lg hover:shadow-xl"
-                      title="管理者メニュー"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                      <span>管理者</span>
-                      <svg className={`w-4 h-4 transition-transform duration-200 ${adminDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    
-                    {adminDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-                        <button
-                          onClick={() => checkAdminAccess('/admin')}
-                          className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3"
-                        >
-                          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                          </svg>
-                          <div>
-                            <div className="font-medium">統計ダッシュボード</div>
-                            <div className="text-xs text-gray-500">ユーザー統計を確認</div>
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => checkAdminAccess('/admin/dashboard')}
-                          className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3"
-                        >
-                          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          <div>
-                            <div className="font-medium">高度な管理ツール</div>
-                            <div className="text-xs text-gray-500">ユーザー管理・セキュリティ</div>
-                          </div>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {/* 右上管理者ボタン - 絶対表示 */}
-                <a
-                  href="/admin"
-                  className="mr-3 px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors shadow-xl border-2 border-red-800"
-                  title="管理者ダッシュボード"
-                  style={{ zIndex: 9999 }}
-                >
-                  🔧 管理者サイト
-                </a>
                 <UserMenu />
               </div>
             </div>

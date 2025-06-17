@@ -100,7 +100,7 @@ export const authOptions = {
             userId: user.id,
             email: user.email,
             name: user.name,
-            action: 'signin',
+            action: 'signin' as const,
             timestamp: now.toISOString(),
             date: now.toISOString().split('T')[0], // 現在の日付を確実に設定
             userAgent: req?.headers?.['user-agent'] || '',

@@ -927,32 +927,63 @@ export default function AdminDashboard() {
     }
   };
 
-  const getActionBadge = (action: string) => {
+  const getActionBadgeClass = (action: string): string => {
     const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
     if (!action) {
-      return <span className={`${baseClasses} bg-gray-100 text-gray-800`}>Unknown</span>;
+      return `${baseClasses} bg-gray-100 text-gray-800`;
     }
     if (action === '新規登録' || action === 'signup') {
-      return <span className={`${baseClasses} bg-green-100 text-green-800`}>{action}</span>;
+      return `${baseClasses} bg-green-100 text-green-800`;
     }
-    return <span className={`${baseClasses} bg-blue-100 text-blue-800`}>{action}</span>;
+    return `${baseClasses} bg-blue-100 text-blue-800`;
   };
 
-  const getSecurityBadge = (type: string) => {
+  const getActionBadge = (action: string) => {
+    const className = getActionBadgeClass(action);
+    const displayText = action || 'Unknown';
+    return <span className={className}>{displayText}</span>;
+  };
+
+  const getSecurityBadgeClass = (type: string): string => {
     const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
     if (!type) {
-      return <span className={`${baseClasses} bg-gray-100 text-gray-800`}>Unknown</span>;
+      return `${baseClasses} bg-gray-100 text-gray-800`;
     }
     switch (type) {
       case 'failed_login':
-        return <span className={`${baseClasses} bg-red-100 text-red-800`}>ログイン失敗</span>;
+        return `${baseClasses} bg-red-100 text-red-800`;
       case 'suspicious_activity':
-        return <span className={`${baseClasses} bg-yellow-100 text-yellow-800`}>不審な活動</span>;
+        return `${baseClasses} bg-yellow-100 text-yellow-800`;
       case 'multiple_attempts':
-        return <span className={`${baseClasses} bg-orange-100 text-orange-800`}>複数回試行</span>;
+        return `${baseClasses} bg-orange-100 text-orange-800`;
       default:
-        return <span className={`${baseClasses} bg-gray-100 text-gray-800`}>{type}</span>;
+        return `${baseClasses} bg-gray-100 text-gray-800`;
     }
+  };
+
+  const getSecurityBadge = (type: string) => {
+    const className = getSecurityBadgeClass(type);
+    let displayText = 'Unknown';
+    
+    if (!type) {
+      displayText = 'Unknown';
+    } else {
+      switch (type) {
+        case 'failed_login':
+          displayText = 'ログイン失敗';
+          break;
+        case 'suspicious_activity':
+          displayText = '不審な活動';
+          break;
+        case 'multiple_attempts':
+          displayText = '複数回試行';
+          break;
+        default:
+          displayText = type;
+      }
+    }
+    
+    return <span className={className}>{displayText}</span>;
   };
 
   // モバイル版とデスクトップ版の分岐
@@ -1189,7 +1220,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                          <span className={getActionBadge(activity.action || 'unknown')}>
+                          <span className={getActionBadgeClass(activity.action || 'unknown')}>
                             {activity.action || 'Unknown'}
                         </span>
                         <span className="text-xs text-gray-500">
@@ -1256,7 +1287,7 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={getActionBadge(activity.action || 'unknown')}>
+                            <span className={getActionBadgeClass(activity.action || 'unknown')}>
                               {activity.action || 'Unknown'}
                           </span>
                         </td>
@@ -1293,7 +1324,7 @@ export default function AdminDashboard() {
                       <div key={event.id} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <span className={getSecurityBadge(event.type)}>
+                            <span className={getSecurityBadgeClass(event.type)}>
                               {event.type === 'failed_login' && 'ログイン失敗'}
                               {event.type === 'suspicious_activity' && '不審な活動'}
                               {event.type === 'multiple_attempts' && '複数回試行'}

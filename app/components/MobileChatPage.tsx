@@ -105,11 +105,21 @@ export default function MobileChatPage() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  const [isComposing, setIsComposing] = useState(false);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !isComposing) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleCompositionStart = () => {
+    setIsComposing(true);
+  };
+
+  const handleCompositionEnd = () => {
+    setIsComposing(false);
   };
 
   if (status === "loading" || !mounted) {
@@ -253,7 +263,9 @@ export default function MobileChatPage() {
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyPress}
+            onKeyDown={handleKeyDown}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
             rows={1}
             style={{ fontSize: '16px' }} // iOS Safari ズーム防止
             className="flex-1 resize-none px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white text-gray-900 text-sm placeholder-gray-500"

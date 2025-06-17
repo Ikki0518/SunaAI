@@ -114,11 +114,21 @@ export default function ClientChatPage() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  const [isComposing, setIsComposing] = useState(false);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !isComposing) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleCompositionStart = () => {
+    setIsComposing(true);
+  };
+
+  const handleCompositionEnd = () => {
+    setIsComposing(false);
   };
 
   // モバイルデバイスの場合はMobileChatPageを表示
@@ -272,7 +282,9 @@ export default function ClientChatPage() {
               <textarea
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyPress}
+                onKeyDown={handleKeyDown}
+                onCompositionStart={handleCompositionStart}
+                onCompositionEnd={handleCompositionEnd}
                 rows={1}
                 className="flex-1 resize-none px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50"
                 placeholder="メッセージを入力..."

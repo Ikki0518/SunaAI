@@ -59,6 +59,26 @@ export interface LoginHistory {
   created_at: string
 }
 
+export interface ChatSession {
+  id: string
+  user_id: string
+  title: string
+  conversation_id?: string
+  is_pinned: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ChatMessage {
+  id: string
+  session_id: string
+  user_id: string
+  role: 'user' | 'bot'
+  content: string
+  timestamp: number
+  created_at: string
+}
+
 // Supabaseから全ユーザーを取得
 export async function getSupabaseUsers() {
   if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');

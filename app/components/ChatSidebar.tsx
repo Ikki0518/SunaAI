@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { ChatSession } from '@/app/types/chat';
 import { ChatHistoryManager } from '@/app/utils/chatHistory';
 
@@ -18,30 +19,61 @@ export default function ChatSidebar({
   isOpen, 
   onToggle 
 }: ChatSidebarProps) {
+  const { data: session } = useSession();
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [mounted, setMounted] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // SSR回避のためのマウント確認
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const loadChatHistory = useCallback(() => {
+  const loadChatHistory = useCallback(async () => {
+    if (loading) return;
+    
     try {
-      const sessions = ChatHistoryManager.getSortedSessions();
+      setLoading(true);
+      // Supabaseとローカルストレージのハイブリッド読み込み
+      const sessions = await ChatHistoryManager.loadAllSessions(session?.user?.id);
       setChatSessions(sessions);
+      console.log('🐘 [SYNC] Chat history loaded:', sessions.length, 'sessions');
     } catch (error) {
       console.error('Failed to load chat history:', error);
+      // フォールバック: ローカルストレージのみ
+      const localSessions = ChatHistoryManager.getSortedSessions();
+      setChatSessions(localSessions);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [session?.user?.id, loading]);
+
+  // 🔄 リアルタイム同期のセットアップ
+  useEffect(() => {
+    if (!mounted) return;
+
+    const cleanup = ChatHistoryManager.setupLocalSyncListener(() => {
+      console.log('📡 [LOCAL SYNC] Refreshing chat history due to update');
+      loadChatHistory();
+    });
+
+    return cleanup;
+  }, [mounted, loadChatHistory]);
 
   useEffect(() => {
     if (mounted) {
       loadChatHistory();
     }
   }, [mounted, loadChatHistory]);
+
+  // セッションが変更された時に再読み込み
+  useEffect(() => {
+    if (mounted && session?.user?.id) {
+      loadChatHistory();
+    }
+  }, [mounted, session?.user?.id, loadChatHistory]);
 
   // サイドバーが開かれたときに履歴を再読み込み（初回のみ）
   useEffect(() => {

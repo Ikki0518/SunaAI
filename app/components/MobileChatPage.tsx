@@ -20,17 +20,43 @@ export default function MobileChatPage() {
 
   useEffect(() => {
     setMounted(true);
-    loadChatHistory();
-  }, []);
+    if (status !== "loading") {
+      loadChatHistory();
+    }
+  }, [status]);
 
-  const loadChatHistory = () => {
+  // セッションが変更された時に再読み込み
+  useEffect(() => {
+    if (mounted && session?.user?.id) {
+      loadChatHistory();
+    }
+  }, [mounted, session?.user?.id]);
+
+  const loadChatHistory = async () => {
     try {
-      const sessions = ChatHistoryManager.getSortedSessions();
+      // Supabaseとローカルストレージのハイブリッド読み込み
+      const sessions = await ChatHistoryManager.loadAllSessions(session?.user?.id);
       setChatSessions(sessions);
+      console.log('🐘 [MOBILE SYNC] Chat history loaded:', sessions.length, 'sessions');
     } catch (error) {
       console.error('Failed to load chat history:', error);
+      // フォールバック: ローカルストレージのみ
+      const localSessions = ChatHistoryManager.getSortedSessions();
+      setChatSessions(localSessions);
     }
   };
+
+  // 🔄 リアルタイム同期のセットアップ
+  useEffect(() => {
+    if (!mounted) return;
+
+    const cleanup = ChatHistoryManager.setupLocalSyncListener(() => {
+      console.log('📡 [MOBILE SYNC] Refreshing chat history due to update');
+      loadChatHistory();
+    });
+
+    return cleanup;
+  }, [mounted]);
 
   const handleNewChat = () => {
     setMessages([]);
@@ -75,7 +101,7 @@ export default function MobileChatPage() {
         if (data.conversationId) {
           setConversationId(data.conversationId);
           
-          // セッション保存
+          // セッション保存（Supabase同期）
           try {
             const sessionToSave: ChatSession = {
               id: currentSession?.id || `session_${Date.now()}`,
@@ -86,11 +112,23 @@ export default function MobileChatPage() {
               updatedAt: Date.now()
             };
             
-            ChatHistoryManager.saveChatSession(sessionToSave);
+            // Supabaseとローカルストレージの両方に同期保存
+            await ChatHistoryManager.syncChatSession(sessionToSave, session?.user?.id);
             setCurrentSession(sessionToSave);
             loadChatHistory();
           } catch (error) {
             console.error('Failed to save chat session:', error);
+            // エラーが発生してもローカル保存は継続
+            const sessionToSave: ChatSession = {
+              id: currentSession?.id || `session_${Date.now()}`,
+              title: currentSession?.title || `${userMessage.slice(0, 30)}...`,
+              messages: newMessages,
+              conversationId: data.conversationId,
+              createdAt: currentSession?.createdAt || Date.now(),
+              updatedAt: Date.now()
+            };
+            ChatHistoryManager.saveChatSession(sessionToSave);
+            setCurrentSession(sessionToSave);
           }
         }
       } else {

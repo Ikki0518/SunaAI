@@ -42,7 +42,7 @@ export default function ClientChatPage() {
     }
   }, [mounted, currentSession, status]);
 
-  const saveCurrentSession = useCallback(() => {
+  const saveCurrentSession = useCallback(async () => {
     if (!mounted || !currentSession || messages.length === 0) return;
     const updatedSession: ChatSession = {
       ...currentSession,
@@ -51,8 +51,16 @@ export default function ClientChatPage() {
       title: messages.length > 0 ? ChatHistoryManager.generateSessionTitle(messages) : currentSession.title,
       updatedAt: Date.now(),
     };
-    ChatHistoryManager.saveChatSession(updatedSession);
-  }, [mounted, currentSession, messages, conversationId]);
+    
+    // Supabaseとローカルストレージの両方に同期保存
+    try {
+      await ChatHistoryManager.syncChatSession(updatedSession, session?.user?.id);
+    } catch (error) {
+      console.error('チャット保存エラー:', error);
+      // エラーが発生してもローカル保存は継続
+      ChatHistoryManager.saveChatSession(updatedSession);
+    }
+  }, [mounted, currentSession, messages, conversationId, session?.user?.id]);
 
   useEffect(() => {
     if (messages.length > 0 && mounted && currentSession) {

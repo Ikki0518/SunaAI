@@ -56,7 +56,10 @@ class LoginHistoryService {
     try {
       const now = new Date();
       const timestamp = now.toISOString();
-      const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      // JST（日本標準時）での日付を記録
+      const nowJST = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+      const date = nowJST.toISOString().split('T')[0]; // YYYY-MM-DD（JST）
 
       const record: LoginRecord = {
         userId,
@@ -100,60 +103,56 @@ class LoginHistoryService {
   public getStats() {
     try {
       const history = this.readHistory();
-      const now = new Date();
-      const today = now.toISOString().split('T')[0]; // YYYY-MM-DD形式
-      const todayJST = new Date(now.getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0]; // JST考慮
+      
+      // 日本標準時（JST）ベースで「今日」を計算
+      const nowJST = new Date(Date.now() + (9 * 60 * 60 * 1000)); // UTC+9時間
+      const todayJST = nowJST.toISOString().split('T')[0]; // YYYY-MM-DD形式（JST）
 
       console.log('📊 [LOGIN STATS] 統計計算開始');
-      console.log('📊 [LOGIN STATS] 今日の日付 (UTC):', today);
+      console.log('📊 [LOGIN STATS] 現在時刻 (JST):', nowJST.toISOString());
       console.log('📊 [LOGIN STATS] 今日の日付 (JST):', todayJST);
       console.log('📊 [LOGIN STATS] 履歴レコード数:', history.length);
 
       // 総ログイン数（サインインのみ）
       const totalLogins = history.filter(record => record.action === 'signin').length;
 
-      // 今日のログイン数（UTC, JST両方を考慮）
-      const todayLoginsUTC = history.filter(record => 
-        record.date === today && record.action === 'signin'
-      ).length;
-      
-      const todayLoginsJST = history.filter(record => 
-        record.date === todayJST && record.action === 'signin'
-      ).length;
-
-      // タイムスタンプベースでの今日のログイン数（より確実）
-      const todayLoginsTimestamp = history.filter(record => {
+      // 今日のログイン数（JSTベース）
+      const todayLogins = history.filter(record => {
         if (record.action !== 'signin') return false;
-        const recordDate = new Date(record.timestamp);
-        const recordDateStr = recordDate.toISOString().split('T')[0];
-        return recordDateStr === today || recordDateStr === todayJST;
+        
+        // まずdateフィールドを確認
+        if (record.date === todayJST) return true;
+        
+        // timestampからJST日付を計算してダブルチェック
+        try {
+          const recordTimeJST = new Date(new Date(record.timestamp).getTime() + (9 * 60 * 60 * 1000));
+          const recordDateJST = recordTimeJST.toISOString().split('T')[0];
+          return recordDateJST === todayJST;
+        } catch {
+          return false;
+        }
       }).length;
 
-      const todayLogins = Math.max(todayLoginsUTC, todayLoginsJST, todayLoginsTimestamp);
-
-      // 今日の新規登録数（UTC, JST両方を考慮）
-      const todaySignupsUTC = history.filter(record => 
-        record.date === today && record.action === 'signup'
-      ).length;
-      
-      const todaySignupsJST = history.filter(record => 
-        record.date === todayJST && record.action === 'signup'
-      ).length;
-
-      // タイムスタンプベースでの今日の新規登録数
-      const todaySignupsTimestamp = history.filter(record => {
+      // 今日の新規登録数（JSTベース）
+      const todaySignups = history.filter(record => {
         if (record.action !== 'signup') return false;
-        const recordDate = new Date(record.timestamp);
-        const recordDateStr = recordDate.toISOString().split('T')[0];
-        return recordDateStr === today || recordDateStr === todayJST;
+        
+        // まずdateフィールドを確認
+        if (record.date === todayJST) return true;
+        
+        // timestampからJST日付を計算してダブルチェック
+        try {
+          const recordTimeJST = new Date(new Date(record.timestamp).getTime() + (9 * 60 * 60 * 1000));
+          const recordDateJST = recordTimeJST.toISOString().split('T')[0];
+          return recordDateJST === todayJST;
+        } catch {
+          return false;
+        }
       }).length;
 
-      const todaySignups = Math.max(todaySignupsUTC, todaySignupsJST, todaySignupsTimestamp);
-
-      // 過去7日間のアクティブユーザー数
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+      // 過去7日間のアクティブユーザー数（JSTベース）
+      const sevenDaysAgoJST = new Date(nowJST.getTime() - (7 * 24 * 60 * 60 * 1000));
+      const sevenDaysAgoStr = sevenDaysAgoJST.toISOString().split('T')[0];
 
       const activeUserIds = new Set();
       history.forEach(record => {
@@ -162,10 +161,14 @@ class LoginHistoryService {
           if (record.date >= sevenDaysAgoStr) {
             activeUserIds.add(record.userId);
           }
-          // timestampベース（フォールバック）
-          const recordDate = new Date(record.timestamp);
-          if (recordDate >= sevenDaysAgo) {
-            activeUserIds.add(record.userId);
+          // timestampベース（JSTで計算）
+          try {
+            const recordTimeJST = new Date(new Date(record.timestamp).getTime() + (9 * 60 * 60 * 1000));
+            if (recordTimeJST >= sevenDaysAgoJST) {
+              activeUserIds.add(record.userId);
+            }
+          } catch {
+            // timestampが無効な場合はスキップ
           }
         }
       });
@@ -173,16 +176,11 @@ class LoginHistoryService {
       // デバッグ情報
       console.log('📊 [LOGIN STATS] 計算結果:');
       console.log('  - 総ログイン数:', totalLogins);
-      console.log('  - 今日のログイン (UTC):', todayLoginsUTC);
-      console.log('  - 今日のログイン (JST):', todayLoginsJST);
-      console.log('  - 今日のログイン (Timestamp):', todayLoginsTimestamp);
-      console.log('  - 今日のログイン (最終):', todayLogins);
-      console.log('  - 今日の新規登録 (UTC):', todaySignupsUTC);
-      console.log('  - 今日の新規登録 (JST):', todaySignupsJST);
-      console.log('  - 今日の新規登録 (Timestamp):', todaySignupsTimestamp);
-      console.log('  - 今日の新規登録 (最終):', todaySignups);
+      console.log('  - 今日のログイン (JST):', todayLogins);
+      console.log('  - 今日の新規登録 (JST):', todaySignups);
       console.log('  - アクティブユーザー数:', activeUserIds.size);
       console.log('  - 総記録数:', history.length);
+      console.log('  ⏰ JST 0時にリセットされます');
 
       // 最近のレコードをサンプル表示
       const recentRecords = history.slice(-5);

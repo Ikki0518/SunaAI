@@ -425,19 +425,19 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-4 bg-blue-50 rounded-xl">
                     <div className="text-2xl font-bold text-blue-600">{stats.totalUsers}</div>
-                    <div className="text-sm text-gray-600 mt-1">総ユーザー</div>
+                    <div className="text-sm text-gray-800 mt-1 font-medium">総ユーザー</div>
                   </div>
                   <div className="text-center p-4 bg-green-50 rounded-xl">
                     <div className="text-2xl font-bold text-green-600">{stats.totalLogins}</div>
-                    <div className="text-sm text-gray-600 mt-1">総ログイン</div>
+                    <div className="text-sm text-gray-800 mt-1 font-medium">総ログイン</div>
                   </div>
                   <div className="text-center p-4 bg-yellow-50 rounded-xl">
                     <div className="text-2xl font-bold text-yellow-600">{stats.todayLogins}</div>
-                    <div className="text-sm text-gray-600 mt-1">今日のログイン</div>
+                    <div className="text-sm text-gray-800 mt-1 font-medium">今日のログイン</div>
                   </div>
                   <div className="text-center p-4 bg-purple-50 rounded-xl">
                     <div className="text-2xl font-bold text-purple-600">{stats.todaySignups}</div>
-                    <div className="text-sm text-gray-600 mt-1">今日の新規</div>
+                    <div className="text-sm text-gray-800 mt-1 font-medium">今日の新規</div>
                   </div>
                 </div>
               </div>
@@ -1110,10 +1110,10 @@ export default function AdminDashboard() {
                     </div>
                     <div className="ml-5 w-0 flex-1">
                       <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
+                        <dt className="text-sm font-medium text-gray-700 truncate">
                           総ユーザー数
                         </dt>
-                        <dd className="text-lg font-medium text-gray-900">
+                        <dd className="text-2xl font-bold text-gray-900">
                           {stats.totalUsers}
                         </dd>
                       </dl>
@@ -1132,10 +1132,10 @@ export default function AdminDashboard() {
                     </div>
                     <div className="ml-5 w-0 flex-1">
                       <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
+                        <dt className="text-sm font-medium text-gray-700 truncate">
                           総ログイン数
                         </dt>
-                        <dd className="text-lg font-medium text-gray-900">
+                        <dd className="text-2xl font-bold text-gray-900">
                           {stats.totalLogins}
                         </dd>
                       </dl>
@@ -1154,10 +1154,10 @@ export default function AdminDashboard() {
                     </div>
                     <div className="ml-5 w-0 flex-1">
                       <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
+                        <dt className="text-sm font-medium text-gray-700 truncate">
                           今日のログイン
                         </dt>
-                        <dd className="text-lg font-medium text-gray-900">
+                        <dd className="text-2xl font-bold text-gray-900">
                           {stats.todayLogins}
                         </dd>
                       </dl>
@@ -1176,10 +1176,10 @@ export default function AdminDashboard() {
                     </div>
                     <div className="ml-5 w-0 flex-1">
                       <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
+                        <dt className="text-sm font-medium text-gray-700 truncate">
                           今日の新規登録
                         </dt>
-                        <dd className="text-lg font-medium text-gray-900">
+                        <dd className="text-2xl font-bold text-gray-900">
                           {stats.todaySignups}
                         </dd>
                       </dl>

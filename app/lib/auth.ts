@@ -131,12 +131,30 @@ export const authOptions = {
     })
   ],
   callbacks: {
-    async jwt({ token, user }: { token: any, user: any }) {
+    async jwt({ token, user, trigger, session }: { token: any, user: any, trigger?: any, session?: any }) {
       // 初回ログイン時にuser情報をtokenに保存
       if (user) {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
+      }
+      
+      // update() が呼ばれた時の処理
+      if (trigger === "update" && session?.name) {
+        token.name = session.name;
+        console.log('🔄 [JWT CALLBACK] Token updated via update():', { newName: session.name });
+      } else if (token.email && trigger !== "update") {
+        // 通常のセッション更新時のみ最新のユーザー情報を取得
+        try {
+          const latestUser = await getSupabaseUserByEmail(token.email);
+          if (latestUser) {
+            token.id = latestUser.id;
+            token.name = latestUser.name; // 最新の名前を取得
+            token.email = latestUser.email;
+          }
+        } catch (error) {
+          console.error('🔄 [JWT CALLBACK] Failed to fetch latest user info:', error);
+        }
       }
       return token;
     },

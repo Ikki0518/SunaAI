@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const router = useRouter();
   const { theme, setTheme, resolvedTheme } = useTheme();
   
@@ -86,6 +86,14 @@ export default function SettingsPage() {
         
         const responseData = await response.json();
         console.log('✅ [SETTINGS] Profile updated successfully:', responseData);
+        
+        // NextAuthセッションを更新（名前を新しい値に）
+        console.log('🔄 [SETTINGS] Updating session with new name:', formData.name);
+        const updateResult = await update({
+          name: formData.name,
+        });
+        console.log('🔄 [SETTINGS] Session update result:', updateResult);
+        console.log('🔄 [SETTINGS] Current session after update:', session);
       }
 
       // テーマ変更
@@ -96,10 +104,10 @@ export default function SettingsPage() {
       setMessage("設定を保存しました！");
       setHasChanges(false);
       
-      // セッションを更新するためにページをリロード
+      // 少し待ってからメッセージを消去（リロードはしない）
       setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+        setMessage("");
+      }, 3000);
       
     } catch (error: any) {
       console.error('❌ [SETTINGS] Settings save error:', error);

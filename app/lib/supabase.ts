@@ -4,6 +4,18 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
+// デバッグログ（開発環境のみ）
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔧 [SUPABASE DEBUG] Environment variables check:', {
+    hasUrl: !!supabaseUrl,
+    hasAnonKey: !!supabaseAnonKey,
+    hasServiceKey: !!supabaseServiceRoleKey,
+    urlLength: supabaseUrl.length,
+    anonKeyLength: supabaseAnonKey.length,
+    serviceKeyLength: supabaseServiceRoleKey.length
+  });
+}
+
 // Supabaseが設定されているかチェック
 const isSupabaseConfigured = supabaseUrl && supabaseAnonKey
 
@@ -21,6 +33,15 @@ export const supabaseAdmin = isSupabaseConfigured && supabaseServiceRoleKey
       }
     })
   : null as any
+
+// デバッグログ（開発環境のみ）
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔧 [SUPABASE DEBUG] Client initialization:', {
+    isSupabaseConfigured,
+    hasSupabaseClient: !!supabase,
+    hasSupabaseAdmin: !!supabaseAdmin
+  });
+}
 
 export function isSupabaseEnabled(): boolean {
   return !!isSupabaseConfigured
@@ -192,7 +213,25 @@ export async function saveSupabaseChatSession(session: any) {
 
 // Supabaseからユーザーのチャットセッション一覧を取得
 export async function getSupabaseChatSessions(user_id: string) {
-  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔧 [SUPABASE DEBUG] getSupabaseChatSessions called:', {
+      user_id,
+      hasSupabaseAdmin: !!supabaseAdmin,
+      isSupabaseConfigured: !!isSupabaseConfigured,
+      hasUrl: !!supabaseUrl,
+      hasServiceKey: !!supabaseServiceRoleKey
+    });
+  }
+  
+  if (!supabaseAdmin) {
+    const errorMsg = `Supabase管理者クライアントが未設定です。環境変数を確認してください:
+    - NEXT_PUBLIC_SUPABASE_URL: ${!!supabaseUrl}
+    - NEXT_PUBLIC_SUPABASE_ANON_KEY: ${!!supabaseAnonKey} 
+    - SUPABASE_SERVICE_ROLE_KEY: ${!!supabaseServiceRoleKey}`;
+    console.error('🔧 [SUPABASE ERROR]', errorMsg);
+    throw new Error(errorMsg);
+  }
+  
   const { data, error } = await supabaseAdmin
     .from('chat_sessions')
     .select('*')

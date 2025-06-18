@@ -29,6 +29,7 @@ export class ChatHistoryManager {
   // Supabaseからユーザーのチャットセッション一覧を取得
   static async loadSessionsFromSupabase(user_id: string): Promise<ChatSession[]> {
     try {
+      console.log('🐘 [SYNC DEBUG] Attempting Supabase session load for user:', user_id);
       const supabaseSessions = await getSupabaseChatSessions(user_id);
       console.log('🐘 [SYNC] Loaded sessions from Supabase:', supabaseSessions.length);
       
@@ -46,7 +47,17 @@ export class ChatHistoryManager {
       return sessions;
     } catch (error) {
       console.error('🐘 [SYNC] Failed to load sessions from Supabase:', error);
-      return [];
+      console.log('💾 [SYNC] Falling back to local storage...');
+      
+      // Supabaseエラー時はローカルストレージを使用
+      try {
+        const localSessions = this.getSortedSessions();
+        console.log('💾 [SYNC] Using local sessions as fallback:', localSessions.length);
+        return localSessions;
+      } catch (localError) {
+        console.error('💾 [SYNC] Local fallback also failed:', localError);
+        return [];
+      }
     }
   }
 
@@ -71,6 +82,7 @@ export class ChatHistoryManager {
   // Supabaseからチャットセッションのメッセージ一覧を取得
   static async loadMessagesFromSupabase(session_id: string): Promise<ChatMessage[]> {
     try {
+      console.log('🐘 [SYNC DEBUG] Attempting Supabase message load for session:', session_id);
       const supabaseMessages = await getSupabaseChatMessages(session_id);
       console.log('🐘 [SYNC] Loaded messages from Supabase:', supabaseMessages.length);
       
@@ -84,7 +96,19 @@ export class ChatHistoryManager {
       return messages;
     } catch (error) {
       console.error('🐘 [SYNC] Failed to load messages from Supabase:', error);
-      return [];
+      console.log('💾 [SYNC] Falling back to local storage for messages...');
+      
+      // Supabaseエラー時はローカルストレージからセッションのメッセージを取得
+      try {
+        const localSessions = this.getSortedSessions();
+        const session = localSessions.find(s => s.id === session_id);
+        const messages = session?.messages || [];
+        console.log('💾 [SYNC] Using local messages as fallback:', messages.length);
+        return messages;
+      } catch (localError) {
+        console.error('💾 [SYNC] Local message fallback also failed:', localError);
+        return [];
+      }
     }
   }
 

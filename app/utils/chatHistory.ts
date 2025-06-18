@@ -147,51 +147,76 @@ export class ChatHistoryManager {
     };
   }
 
-  // ハイブリッド同期: Supabaseとローカルストレージの両方を使用
+  // 真のデバイス間同期: Supabaseを必須とする
   static async syncChatSession(session: ChatSession, user_id?: string): Promise<void> {
-    try {
-      console.log('🔄 [SYNC DEBUG] Starting chat session sync:', {
-        sessionId: session.id,
-        userId: user_id,
-        messageCount: session.messages?.length || 0,
-        hasUserId: !!user_id,
-        sessionTitle: session.title
-      });
-      
-      // ローカルストレージに保存 + ブロードキャスト
-      this.broadcastChatUpdate(session);
-      console.log('💾 [SYNC DEBUG] Local save completed');
-      
-      // ユーザーIDがある場合はSupabaseにも保存
-      if (user_id) {
-        console.log('🐘 [SYNC DEBUG] Attempting Supabase sync...');
-        
-        try {
-          await this.saveSessionToSupabase(session, user_id);
-          console.log('✅ [SYNC DEBUG] Session saved to Supabase successfully');
-          
-          // メッセージもSupabaseに保存
-          console.log('💬 [SYNC DEBUG] Saving messages to Supabase...');
-          for (const message of session.messages || []) {
-            await this.saveMessageToSupabase(message, session.id, user_id);
-          }
-          console.log('✅ [SYNC DEBUG] All messages saved to Supabase:', session.messages?.length || 0);
-        } catch (supabaseError) {
-          console.error('❌ [SYNC DEBUG] Supabase sync failed:', supabaseError);
-          throw supabaseError;
-        }
-      } else {
-        console.log('⚠️ [SYNC DEBUG] No user ID provided, using local sync only');
+    console.log('🔄 [SYNC DEBUG] Starting chat session sync:', {
+      sessionId: session.id,
+      userId: user_id,
+      messageCount: session.messages?.length || 0,
+      hasUserId: !!user_id,
+      sessionTitle: session.title
+    });
+    
+    // ユーザーIDがない場合は一時キャッシュのみ（同期なし）
+    if (!user_id) {
+      console.log('⚠️ [SYNC DEBUG] No user ID - saving to cache only (no cross-device sync)');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(this.getLocalStorageKey() + '_temp', JSON.stringify([session]));
       }
+      return;
+    }
+
+    try {
+      console.log('🐘 [SYNC DEBUG] Attempting Supabase sync for cross-device sync...');
+      
+      // Supabaseに保存（デバイス間同期）
+      await this.saveSessionToSupabase(session, user_id);
+      console.log('✅ [SYNC DEBUG] Session saved to Supabase successfully');
+      
+      // メッセージもSupabaseに保存
+      console.log('💬 [SYNC DEBUG] Saving messages to Supabase...');
+      for (const message of session.messages || []) {
+        await this.saveMessageToSupabase(message, session.id, user_id);
+      }
+      console.log('✅ [SYNC DEBUG] All messages saved to Supabase:', session.messages?.length || 0);
+      
+      // 成功時のみローカルキャッシュを更新
+      if (typeof window !== 'undefined') {
+        try {
+          const existingCache = localStorage.getItem(this.getLocalStorageKey() + '_cache');
+          let sessions = existingCache ? JSON.parse(existingCache) : [];
+          const sessionIndex = sessions.findIndex((s: ChatSession) => s.id === session.id);
+          
+          if (sessionIndex !== -1) {
+            sessions[sessionIndex] = session;
+          } else {
+            sessions.push(session);
+          }
+          
+          localStorage.setItem(this.getLocalStorageKey() + '_cache', JSON.stringify(sessions));
+          console.log('💾 [SYNC DEBUG] Local cache updated after successful sync');
+        } catch (cacheError) {
+          console.error('💾 [SYNC DEBUG] Cache update failed (not critical):', cacheError);
+        }
+      }
+      
+      console.log('🎉 [SYNC DEBUG] Cross-device sync completed successfully!');
+      
     } catch (error) {
-      console.error('🚨 [SYNC DEBUG] Failed to sync chat session:', error);
-      // エラーが発生してもローカル保存は続行
-      console.log('💾 [SYNC DEBUG] Falling back to local save only');
-      this.broadcastChatUpdate(session);
+      console.error('❌ [SYNC DEBUG] Supabase sync failed - no cross-device sync:', error);
+      
+      // Supabaseエラー時は一時データとして保存（デバイス間同期なし）
+      console.log('💾 [SYNC DEBUG] Saving to temporary storage (no sync across devices)');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(this.getLocalStorageKey() + '_temp', JSON.stringify([session]));
+      }
+      
+      // エラーを再スローして上位で処理
+      throw new Error(`デバイス間同期が失敗しました: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  // ハイブリッド読み込み: Supabaseから読み込み、失敗時はローカル
+  // ハイブリッド読み込み: Supabaseを優先、ローカルは一時キャッシュのみ
   static async loadAllSessions(user_id?: string): Promise<ChatSession[]> {
     try {
       console.log('📥 [LOAD DEBUG] Starting session load:', {
@@ -200,37 +225,66 @@ export class ChatHistoryManager {
       });
       
       if (user_id) {
-        console.log('🐘 [LOAD DEBUG] Attempting to load from Supabase...');
+        console.log('🐘 [LOAD DEBUG] Attempting to load from Supabase (デバイス間同期)...');
         
-        // まずSupabaseから読み込み
-        const supabaseSessions = await this.loadSessionsFromSupabase(user_id);
-        console.log('📊 [LOAD DEBUG] Supabase sessions loaded:', supabaseSessions.length);
-        
-        // 各セッションのメッセージも読み込み
-        for (const session of supabaseSessions) {
-          console.log('💬 [LOAD DEBUG] Loading messages for session:', session.id);
-          session.messages = await this.loadMessagesFromSupabase(session.id);
-        }
-        
-        if (supabaseSessions.length > 0) {
-          console.log('✅ [LOAD DEBUG] Using Supabase data, syncing to local...');
-          // Supabaseのデータをローカルストレージにも保存（オフライン対応）
-          localStorage.setItem(this.getLocalStorageKey(), JSON.stringify(supabaseSessions));
+        try {
+          // Supabaseから読み込み（デバイス間同期）
+          const supabaseSessions = await this.loadSessionsFromSupabase(user_id);
+          console.log('📊 [LOAD DEBUG] Supabase sessions loaded:', supabaseSessions.length);
+          
+          // 各セッションのメッセージも読み込み
+          for (const session of supabaseSessions) {
+            console.log('💬 [LOAD DEBUG] Loading messages for session:', session.id);
+            session.messages = await this.loadMessagesFromSupabase(session.id);
+          }
+          
+          console.log('✅ [LOAD DEBUG] Using Supabase data for cross-device sync');
+          // Supabaseのデータをローカルキャッシュに保存（高速化用）
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(this.getLocalStorageKey() + '_cache', JSON.stringify(supabaseSessions));
+          }
           return supabaseSessions;
-        } else {
-          console.log('⚠️ [LOAD DEBUG] No Supabase sessions found, falling back to local');
+          
+        } catch (supabaseError) {
+          console.error('❌ [LOAD DEBUG] Supabase load failed:', supabaseError);
+          console.log('⚠️ [LOAD DEBUG] デバイス間同期ができません。Supabase接続を確認してください');
+          
+          // Supabaseエラー時は一時的にキャッシュを使用（非推奨だが一時対応）
+          try {
+            const cached = localStorage.getItem(this.getLocalStorageKey() + '_cache');
+            if (cached) {
+              const cachedSessions = JSON.parse(cached);
+              console.log('💾 [LOAD DEBUG] Using cached data temporarily:', cachedSessions.length);
+              return cachedSessions;
+            }
+          } catch (cacheError) {
+            console.error('💾 [LOAD DEBUG] Cache read failed:', cacheError);
+          }
+          
+          // 最後の手段として空配列
+          console.log('⚠️ [LOAD DEBUG] No data available - returning empty sessions');
+          return [];
         }
       } else {
-        console.log('⚠️ [LOAD DEBUG] No user ID, using local sessions only');
+        console.log('⚠️ [LOAD DEBUG] ログインしていません。デバイス間同期を利用するにはログインが必要です');
+        
+        // 未ログイン時は一時的にローカルキャッシュを使用
+        try {
+          const cached = localStorage.getItem(this.getLocalStorageKey() + '_cache');
+          if (cached) {
+            const cachedSessions = JSON.parse(cached);
+            console.log('💾 [LOAD DEBUG] Using cached data for guest mode:', cachedSessions.length);
+            return cachedSessions;
+          }
+        } catch (cacheError) {
+          console.error('💾 [LOAD DEBUG] Cache read failed:', cacheError);
+        }
+        
+        return [];
       }
-      
-      // Supabaseが失敗またはuser_idがない場合はローカルから読み込み
-      const localSessions = this.getSortedSessions();
-      console.log('💾 [LOAD DEBUG] Using local sessions:', localSessions.length);
-      return localSessions;
     } catch (error) {
-      console.error('🚨 [LOAD DEBUG] Failed to load sessions, falling back to local:', error);
-      return this.getSortedSessions();
+      console.error('🚨 [LOAD DEBUG] Critical error in session loading:', error);
+      return [];
     }
   }
 

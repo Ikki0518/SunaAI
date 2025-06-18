@@ -17,6 +17,7 @@ export default function MobileChatPage() {
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const [showChatList, setShowChatList] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [syncStatus, setSyncStatus] = useState<'connected' | 'disconnected' | 'syncing'>('disconnected');
 
   useEffect(() => {
     setMounted(true);
@@ -34,12 +35,15 @@ export default function MobileChatPage() {
 
   const loadChatHistory = async () => {
     try {
+      setSyncStatus('syncing');
       // Supabaseとローカルストレージのハイブリッド読み込み
       const sessions = await ChatHistoryManager.loadAllSessions(session?.user?.id);
       setChatSessions(sessions);
+      setSyncStatus('connected');
       console.log('🐘 [MOBILE SYNC] Chat history loaded:', sessions.length, 'sessions');
     } catch (error) {
       console.error('Failed to load chat history:', error);
+      setSyncStatus('disconnected');
       // フォールバック: ローカルストレージのみ
       const localSessions = ChatHistoryManager.getSortedSessions();
       setChatSessions(localSessions);
@@ -103,6 +107,7 @@ export default function MobileChatPage() {
           
           // セッション保存（Supabase同期）
           try {
+            setSyncStatus('syncing');
             const sessionToSave: ChatSession = {
               id: currentSession?.id || `session_${Date.now()}`,
               title: currentSession?.title || `${userMessage.slice(0, 30)}...`,
@@ -114,10 +119,12 @@ export default function MobileChatPage() {
             
             // Supabaseとローカルストレージの両方に同期保存
             await ChatHistoryManager.syncChatSession(sessionToSave, session?.user?.id);
+            setSyncStatus('connected');
             setCurrentSession(sessionToSave);
             loadChatHistory();
           } catch (error) {
             console.error('Failed to save chat session:', error);
+            setSyncStatus('disconnected');
             // エラーが発生してもローカル保存は継続
             const sessionToSave: ChatSession = {
               id: currentSession?.id || `session_${Date.now()}`,
@@ -186,6 +193,25 @@ export default function MobileChatPage() {
               </svg>
             </button>
             <SunaLogo size="sm" />
+            {/* デバイス間同期状況表示 */}
+            {session?.user && (
+              <div className="flex items-center space-x-1">
+                <div className={`w-1.5 h-1.5 rounded-full ${
+                  syncStatus === 'connected' ? 'bg-green-500' :
+                  syncStatus === 'syncing' ? 'bg-yellow-500 animate-pulse' :
+                  'bg-red-500'
+                }`}></div>
+                <span className={`text-xs ${
+                  syncStatus === 'connected' ? 'text-green-600' :
+                  syncStatus === 'syncing' ? 'text-yellow-600' :
+                  'text-red-600'
+                }`}>
+                  {syncStatus === 'connected' ? '同期' :
+                   syncStatus === 'syncing' ? '...' :
+                   'ローカル'}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center">
             <UserMenu />

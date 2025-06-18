@@ -22,10 +22,14 @@ export default function ClientChatPage() {
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'connected' | 'disconnected' | 'syncing'>('disconnected');
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (status !== "loading") {
+      checkSyncStatus();
+    }
+  }, [status]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -42,6 +46,22 @@ export default function ClientChatPage() {
     }
   }, [mounted, currentSession, status]);
 
+  const checkSyncStatus = async () => {
+    if (session?.user?.id) {
+      try {
+        setSyncStatus('syncing');
+        // Supabase接続テスト
+        await ChatHistoryManager.loadAllSessions(session.user.id);
+        setSyncStatus('connected');
+      } catch (error) {
+        console.error('Sync status check failed:', error);
+        setSyncStatus('disconnected');
+      }
+    } else {
+      setSyncStatus('disconnected');
+    }
+  };
+
   const saveCurrentSession = useCallback(async () => {
     if (!mounted || !currentSession || messages.length === 0) return;
     const updatedSession: ChatSession = {
@@ -54,9 +74,12 @@ export default function ClientChatPage() {
     
     // Supabaseとローカルストレージの両方に同期保存
     try {
+      setSyncStatus('syncing');
       await ChatHistoryManager.syncChatSession(updatedSession, session?.user?.id);
+      setSyncStatus('connected');
     } catch (error) {
       console.error('チャット保存エラー:', error);
+      setSyncStatus('disconnected');
       // エラーが発生してもローカル保存は継続
       ChatHistoryManager.saveChatSession(updatedSession);
     }
@@ -171,6 +194,25 @@ export default function ClientChatPage() {
                 <div className="flex items-center relative">
                   <SunaLogo size="sm" />
                 </div>
+                {/* デバイス間同期状況表示 */}
+                {session?.user && (
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      syncStatus === 'connected' ? 'bg-green-500' :
+                      syncStatus === 'syncing' ? 'bg-yellow-500 animate-pulse' :
+                      'bg-red-500'
+                    }`}></div>
+                    <span className={`text-xs font-medium ${
+                      syncStatus === 'connected' ? 'text-green-600' :
+                      syncStatus === 'syncing' ? 'text-yellow-600' :
+                      'text-red-600'
+                    }`}>
+                      {syncStatus === 'connected' ? 'デバイス間同期' :
+                       syncStatus === 'syncing' ? '同期中...' :
+                       'ローカルのみ'}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="flex items-center space-x-3">
                 <UserMenu />

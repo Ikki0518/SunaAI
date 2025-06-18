@@ -126,32 +126,43 @@ export class ChatHistoryManager {
   // ハイブリッド同期: Supabaseとローカルストレージの両方を使用
   static async syncChatSession(session: ChatSession, user_id?: string): Promise<void> {
     try {
-      console.log('🐘 [SYNC] Starting chat session sync:', {
+      console.log('🔄 [SYNC DEBUG] Starting chat session sync:', {
         sessionId: session.id,
         userId: user_id,
-        messageCount: session.messages?.length || 0
+        messageCount: session.messages?.length || 0,
+        hasUserId: !!user_id,
+        sessionTitle: session.title
       });
       
       // ローカルストレージに保存 + ブロードキャスト
       this.broadcastChatUpdate(session);
-      console.log('💾 [SYNC] Local save completed');
+      console.log('💾 [SYNC DEBUG] Local save completed');
       
       // ユーザーIDがある場合はSupabaseにも保存
       if (user_id) {
-        await this.saveSessionToSupabase(session, user_id);
-        console.log('🐘 [SYNC] Session saved to Supabase');
+        console.log('🐘 [SYNC DEBUG] Attempting Supabase sync...');
         
-        // メッセージもSupabaseに保存
-        for (const message of session.messages || []) {
-          await this.saveMessageToSupabase(message, session.id, user_id);
+        try {
+          await this.saveSessionToSupabase(session, user_id);
+          console.log('✅ [SYNC DEBUG] Session saved to Supabase successfully');
+          
+          // メッセージもSupabaseに保存
+          console.log('💬 [SYNC DEBUG] Saving messages to Supabase...');
+          for (const message of session.messages || []) {
+            await this.saveMessageToSupabase(message, session.id, user_id);
+          }
+          console.log('✅ [SYNC DEBUG] All messages saved to Supabase:', session.messages?.length || 0);
+        } catch (supabaseError) {
+          console.error('❌ [SYNC DEBUG] Supabase sync failed:', supabaseError);
+          throw supabaseError;
         }
-        console.log('💬 [SYNC] Messages saved to Supabase:', session.messages?.length || 0);
       } else {
-        console.log('⚠️ [SYNC] No user ID provided, using local sync only');
+        console.log('⚠️ [SYNC DEBUG] No user ID provided, using local sync only');
       }
     } catch (error) {
-      console.error('🐘 [SYNC] Failed to sync chat session:', error);
+      console.error('🚨 [SYNC DEBUG] Failed to sync chat session:', error);
       // エラーが発生してもローカル保存は続行
+      console.log('💾 [SYNC DEBUG] Falling back to local save only');
       this.broadcastChatUpdate(session);
     }
   }
@@ -159,28 +170,42 @@ export class ChatHistoryManager {
   // ハイブリッド読み込み: Supabaseから読み込み、失敗時はローカル
   static async loadAllSessions(user_id?: string): Promise<ChatSession[]> {
     try {
+      console.log('📥 [LOAD DEBUG] Starting session load:', {
+        userId: user_id,
+        hasUserId: !!user_id
+      });
+      
       if (user_id) {
+        console.log('🐘 [LOAD DEBUG] Attempting to load from Supabase...');
+        
         // まずSupabaseから読み込み
         const supabaseSessions = await this.loadSessionsFromSupabase(user_id);
+        console.log('📊 [LOAD DEBUG] Supabase sessions loaded:', supabaseSessions.length);
         
         // 各セッションのメッセージも読み込み
         for (const session of supabaseSessions) {
+          console.log('💬 [LOAD DEBUG] Loading messages for session:', session.id);
           session.messages = await this.loadMessagesFromSupabase(session.id);
         }
         
         if (supabaseSessions.length > 0) {
+          console.log('✅ [LOAD DEBUG] Using Supabase data, syncing to local...');
           // Supabaseのデータをローカルストレージにも保存（オフライン対応）
           localStorage.setItem(this.getLocalStorageKey(), JSON.stringify(supabaseSessions));
           return supabaseSessions;
+        } else {
+          console.log('⚠️ [LOAD DEBUG] No Supabase sessions found, falling back to local');
         }
+      } else {
+        console.log('⚠️ [LOAD DEBUG] No user ID, using local sessions only');
       }
       
       // Supabaseが失敗またはuser_idがない場合はローカルから読み込み
       const localSessions = this.getSortedSessions();
-      console.log('💾 [LOCAL SYNC] Using local sessions:', localSessions.length);
+      console.log('💾 [LOAD DEBUG] Using local sessions:', localSessions.length);
       return localSessions;
     } catch (error) {
-      console.error('🐘 [SYNC] Failed to load sessions, falling back to local:', error);
+      console.error('🚨 [LOAD DEBUG] Failed to load sessions, falling back to local:', error);
       return this.getSortedSessions();
     }
   }

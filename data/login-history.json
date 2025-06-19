@@ -153,10 +153,20 @@
   },
   {
     "userId": "realtime-test-2",
-    "email": "ikkiyamamoto0518@gmail.com", 
+    "email": "ikkiyamamoto0518@gmail.com",
     "name": "ikkiyamamoto0518",
     "action": "signin",
     "timestamp": "2025-06-17T01:57:00.000Z",
     "date": "2025-06-17"
+  },
+  {
+    "userId": "8ce33b95-5299-4848-877c-3a339e4f9414",
+    "email": "ikki_y0518@icloud.com",
+    "name": "いっき",
+    "action": "signin",
+    "timestamp": "2025-06-18T16:41:41.202Z",
+    "date": "2025-06-18",
+    "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari Line/15.9.0",
+    "ipAddress": "::ffff:192.168.151.7"
   }
 ]

@@ -36,10 +36,19 @@ export default function ChatSidebar({
     
     try {
       setLoading(true);
-      // Supabaseとローカルストレージのハイブリッド読み込み
-      const sessions = await ChatHistoryManager.loadAllSessions(session?.user?.id);
-      setChatSessions(sessions);
-      console.log('🐘 [SYNC] Chat history loaded:', sessions.length, 'sessions');
+      
+      // 認証されている場合のみSupabaseから読み込み、そうでない場合はローカルのみ
+      if (session?.user?.id) {
+        console.log('🐘 [SIDEBAR] Loading from Supabase + Local for user:', session.user.id);
+        const sessions = await ChatHistoryManager.loadAllSessions(session.user.id);
+        setChatSessions(sessions);
+        console.log('🐘 [SIDEBAR] Chat history loaded:', sessions.length, 'sessions');
+      } else {
+        console.log('👤 [SIDEBAR] Guest user - loading from local storage only');
+        const localSessions = ChatHistoryManager.getSortedSessions();
+        setChatSessions(localSessions);
+        console.log('👤 [SIDEBAR] Local sessions loaded:', localSessions.length, 'sessions');
+      }
     } catch (error) {
       console.error('Failed to load chat history:', error);
       // フォールバック: ローカルストレージのみ
@@ -50,9 +59,16 @@ export default function ChatSidebar({
     }
   }, [session?.user?.id, loading]);
 
-  // 🔄 リアルタイム同期のセットアップ
+  // 🔄 初回読み込みのみ（無限ループ防止）
   useEffect(() => {
-    if (!mounted) return;
+    if (mounted) {
+      loadChatHistory();
+    }
+  }, [mounted]); // session?.user?.idとloadChatHistoryを依存配列から削除
+
+  // 🔄 ローカル同期リスナー（認証されている場合のみ）
+  useEffect(() => {
+    if (!mounted || !session?.user?.id) return;
 
     const cleanup = ChatHistoryManager.setupLocalSyncListener(() => {
       console.log('📡 [LOCAL SYNC] Refreshing chat history due to update');
@@ -60,27 +76,7 @@ export default function ChatSidebar({
     });
 
     return cleanup;
-  }, [mounted, loadChatHistory]);
-
-  useEffect(() => {
-    if (mounted) {
-      loadChatHistory();
-    }
-  }, [mounted, loadChatHistory]);
-
-  // セッションが変更された時に再読み込み
-  useEffect(() => {
-    if (mounted && session?.user?.id) {
-      loadChatHistory();
-    }
-  }, [mounted, session?.user?.id, loadChatHistory]);
-
-  // サイドバーが開かれたときに履歴を再読み込み（初回のみ）
-  useEffect(() => {
-    if (mounted && isOpen && chatSessions.length === 0) {
-      loadChatHistory();
-    }
-  }, [mounted, isOpen, chatSessions.length, loadChatHistory]);
+  }, [mounted, session?.user?.id]); // loadChatHistoryを依存配列から削除
 
   const handleDeleteSession = (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();

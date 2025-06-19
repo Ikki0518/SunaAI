@@ -36,13 +36,23 @@ export default function MobileChatPage() {
   const loadChatHistory = async () => {
     try {
       setSyncStatus('syncing');
-      // Supabaseとローカルストレージのハイブリッド読み込み
-      const sessions = await ChatHistoryManager.loadAllSessions(session?.user?.id);
-      setChatSessions(sessions);
-      setSyncStatus('connected');
-      console.log('🐘 [MOBILE SYNC] Chat history loaded:', sessions.length, 'sessions');
+      
+      // 認証されている場合のみSupabaseから読み込み、そうでない場合はローカルのみ
+      if (session?.user?.id) {
+        console.log('🐘 [MOBILE] Loading from Supabase + Local for user:', session.user.id);
+        const sessions = await ChatHistoryManager.loadAllSessions(session.user.id);
+        setChatSessions(sessions);
+        setSyncStatus('connected');
+        console.log('🐘 [MOBILE] Chat history loaded:', sessions.length, 'sessions');
+      } else {
+        console.log('👤 [MOBILE] Guest user - loading from local storage only');
+        const localSessions = ChatHistoryManager.getSortedSessions();
+        setChatSessions(localSessions);
+        setSyncStatus('disconnected');
+        console.log('👤 [MOBILE] Local sessions loaded:', localSessions.length, 'sessions');
+      }
     } catch (error) {
-      console.error('Failed to load chat history:', error);
+      console.error('❌ [MOBILE] Failed to load chat history:', error);
       setSyncStatus('disconnected');
       // フォールバック: ローカルストレージのみ
       const localSessions = ChatHistoryManager.getSortedSessions();
@@ -50,9 +60,16 @@ export default function MobileChatPage() {
     }
   };
 
-  // 🔄 リアルタイム同期のセットアップ
+  // 🔄 初回読み込みのみ（無限ループ防止）
   useEffect(() => {
-    if (!mounted) return;
+    if (mounted && status !== "loading") {
+      loadChatHistory();
+    }
+  }, [mounted, status]); // session?.user?.idを依存配列から削除
+
+  // 🔄 ローカル同期リスナー（認証されている場合のみ）
+  useEffect(() => {
+    if (!mounted || !session?.user?.id) return;
 
     const cleanup = ChatHistoryManager.setupLocalSyncListener(() => {
       console.log('📡 [MOBILE SYNC] Refreshing chat history due to update');
@@ -60,7 +77,7 @@ export default function MobileChatPage() {
     });
 
     return cleanup;
-  }, [mounted]);
+  }, [mounted, session?.user?.id]);
 
   const handleNewChat = () => {
     setMessages([]);
@@ -105,37 +122,36 @@ export default function MobileChatPage() {
         if (data.conversationId) {
           setConversationId(data.conversationId);
           
-          // セッション保存（Supabase同期）
-          try {
-            setSyncStatus('syncing');
-            const sessionToSave: ChatSession = {
-              id: currentSession?.id || `session_${Date.now()}`,
-              title: currentSession?.title || `${userMessage.slice(0, 30)}...`,
-              messages: newMessages,
-              conversationId: data.conversationId,
-              createdAt: currentSession?.createdAt || Date.now(),
-              updatedAt: Date.now()
-            };
-            
-            // Supabaseとローカルストレージの両方に同期保存
-            await ChatHistoryManager.syncChatSession(sessionToSave, session?.user?.id);
-            setSyncStatus('connected');
-            setCurrentSession(sessionToSave);
-            loadChatHistory();
-          } catch (error) {
-            console.error('Failed to save chat session:', error);
-            setSyncStatus('disconnected');
-            // エラーが発生してもローカル保存は継続
-            const sessionToSave: ChatSession = {
-              id: currentSession?.id || `session_${Date.now()}`,
-              title: currentSession?.title || `${userMessage.slice(0, 30)}...`,
-              messages: newMessages,
-              conversationId: data.conversationId,
-              createdAt: currentSession?.createdAt || Date.now(),
-              updatedAt: Date.now()
-            };
+          // セッション保存（認証されている場合のみSupabase同期）
+          const sessionToSave: ChatSession = {
+            id: currentSession?.id || `session_${Date.now()}`,
+            title: currentSession?.title || `${userMessage.slice(0, 30)}...`,
+            messages: newMessages,
+            conversationId: data.conversationId,
+            createdAt: currentSession?.createdAt || Date.now(),
+            updatedAt: Date.now()
+          };
+          
+          if (session?.user?.id) {
+            // 認証されている場合: Supabase同期
+            try {
+              setSyncStatus('syncing');
+              await ChatHistoryManager.syncChatSession(sessionToSave, session.user.id);
+              setSyncStatus('connected');
+              setCurrentSession(sessionToSave);
+              // loadChatHistory()を削除（無限ループ防止）
+            } catch (error) {
+              console.error('❌ [MOBILE] Failed to save chat session:', error);
+              setSyncStatus('disconnected');
+              // エラーが発生してもローカル保存は継続
+              ChatHistoryManager.saveChatSession(sessionToSave);
+              setCurrentSession(sessionToSave);
+            }
+          } else {
+            // ゲストユーザーの場合: ローカルストレージのみ
             ChatHistoryManager.saveChatSession(sessionToSave);
             setCurrentSession(sessionToSave);
+            console.log('👤 [MOBILE GUEST] Chat saved to localStorage only');
           }
         }
       } else {

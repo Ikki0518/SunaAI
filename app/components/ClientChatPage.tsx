@@ -26,16 +26,14 @@ export default function ClientChatPage() {
 
   useEffect(() => {
     setMounted(true);
-    if (status !== "loading") {
+    // 認証されている場合のみ同期状況をチェック（ゲストユーザーの場合はスキップ）
+    if (status === "authenticated" && session?.user?.id) {
       checkSyncStatus();
+    } else if (status === "unauthenticated") {
+      // ゲストユーザーの場合は即座にローカルモードに設定
+      setSyncStatus('disconnected');
     }
   }, [status]);
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push('/auth/signin');
-    }
-  }, [status, router]);
 
   useEffect(() => {
     if (mounted && !currentSession && status !== "loading") {
@@ -47,17 +45,34 @@ export default function ClientChatPage() {
   }, [mounted, currentSession, status]);
 
   const checkSyncStatus = async () => {
-    if (session?.user?.id) {
-      try {
-        setSyncStatus('syncing');
-        // Supabase接続テスト
-        await ChatHistoryManager.loadAllSessions(session.user.id);
-        setSyncStatus('connected');
-      } catch (error) {
-        console.error('Sync status check failed:', error);
-        setSyncStatus('disconnected');
-      }
-    } else {
+    console.log('🔄 [SYNC STATUS] Starting sync status check...');
+    
+    // 認証されていない場合は即座にローカルモードに設定
+    if (!session?.user?.id) {
+      console.log('👤 [SYNC STATUS] User not authenticated - local mode only');
+      setSyncStatus('disconnected');
+      return; // 重要: ここでAPIコールを行わない
+    }
+    
+    console.log('🔄 [SYNC STATUS] User authenticated:', {
+      userId: session.user.id?.slice(0, 8) + '...',
+      email: session.user.email
+    });
+    
+    try {
+      setSyncStatus('syncing');
+      console.log('🔄 [SYNC STATUS] Testing Supabase connection...');
+      
+      // Supabase接続テスト
+      const sessions = await ChatHistoryManager.loadAllSessions(session.user.id);
+      console.log('✅ [SYNC STATUS] Supabase connection successful:', sessions.length, 'sessions');
+      setSyncStatus('connected');
+    } catch (error) {
+      console.error('❌ [SYNC STATUS] Supabase connection failed:', error);
+      console.error('❌ [SYNC STATUS] Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       setSyncStatus('disconnected');
     }
   };
@@ -72,16 +87,22 @@ export default function ClientChatPage() {
       updatedAt: Date.now(),
     };
     
-    // Supabaseとローカルストレージの両方に同期保存
-    try {
-      setSyncStatus('syncing');
-      await ChatHistoryManager.syncChatSession(updatedSession, session?.user?.id);
-      setSyncStatus('connected');
-    } catch (error) {
-      console.error('チャット保存エラー:', error);
-      setSyncStatus('disconnected');
-      // エラーが発生してもローカル保存は継続
+    // 認証されている場合のみSupabase同期、されていない場合はローカルのみ
+    if (session?.user?.id) {
+      try {
+        setSyncStatus('syncing');
+        await ChatHistoryManager.syncChatSession(updatedSession, session.user.id);
+        setSyncStatus('connected');
+      } catch (error) {
+        console.error('チャット保存エラー:', error);
+        setSyncStatus('disconnected');
+        // エラーが発生してもローカル保存は継続
+        ChatHistoryManager.saveChatSession(updatedSession);
+      }
+    } else {
+      // ゲストユーザーの場合はローカルストレージのみ
       ChatHistoryManager.saveChatSession(updatedSession);
+      console.log('👤 [GUEST] Chat saved to localStorage only');
     }
   }, [mounted, currentSession, messages, conversationId, session?.user?.id]);
 
@@ -133,6 +154,8 @@ export default function ClientChatPage() {
         if (data.conversationId) {
           setConversationId(data.conversationId);
         }
+        
+        // チャット完了後の自動同期確認は削除（無限ループ防止）
       } else {
         const errorMsg: ChatMessage = { role: "bot", content: "エラーが発生しました", timestamp: Date.now() };
         setMessages(prev => [...prev, errorMsg]);
@@ -206,11 +229,24 @@ export default function ClientChatPage() {
                       syncStatus === 'connected' ? 'text-green-600' :
                       syncStatus === 'syncing' ? 'text-yellow-600' :
                       'text-red-600'
-                    }`}>
+                    }`} title={
+                      syncStatus === 'connected' ? 'Supabaseに正常に接続されています。チャット履歴は全デバイスで同期されます。' :
+                      syncStatus === 'syncing' ? 'Supabaseとの同期を確認中です...' :
+                      'Supabaseとの接続に問題があります。チャットはローカルに保存されますが、デバイス間同期はできません。'
+                    }>
                       {syncStatus === 'connected' ? 'デバイス間同期' :
                        syncStatus === 'syncing' ? '同期中...' :
                        'ローカルのみ'}
                     </span>
+                    {syncStatus === 'disconnected' && (
+                      <button
+                        onClick={checkSyncStatus}
+                        className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        title="同期状況を再確認"
+                      >
+                        再試行
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

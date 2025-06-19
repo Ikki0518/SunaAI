@@ -115,5 +115,14 @@
     "details": "パスワードが間違っています (試行回数: 1)",
     "ipAddress": "::1",
     "severity": "medium"
+  },
+  {
+    "id": "1750264891667-0wrnbxzni",
+    "type": "failed_login",
+    "email": "ikki_y0518@icloud.com",
+    "timestamp": "2025-06-18T16:41:31.667Z",
+    "details": "パスワードが間違っています (試行回数: 1)",
+    "ipAddress": "::ffff:192.168.151.7",
+    "severity": "medium"
   }
 ]

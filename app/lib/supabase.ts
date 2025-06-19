@@ -4,20 +4,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
-// デバッグログ（開発環境のみ）
-if (process.env.NODE_ENV === 'development') {
-  console.log('🔧 [SUPABASE DEBUG] Environment variables check:', {
-    hasUrl: !!supabaseUrl,
-    hasAnonKey: !!supabaseAnonKey,
-    hasServiceKey: !!supabaseServiceRoleKey,
-    urlLength: supabaseUrl.length,
-    anonKeyLength: supabaseAnonKey.length,
-    serviceKeyLength: supabaseServiceRoleKey.length
-  });
-}
-
 // Supabaseが設定されているかチェック
-const isSupabaseConfigured = supabaseUrl && supabaseAnonKey
+const isSupabaseConfigured = supabaseUrl && supabaseAnonKey && supabaseServiceRoleKey
 
 // クライアント用（ブラウザで使用）
 export const supabase = isSupabaseConfigured
@@ -25,7 +13,7 @@ export const supabase = isSupabaseConfigured
   : null as any
 
 // サーバー用（管理者権限が必要な操作で使用）
-export const supabaseAdmin = isSupabaseConfigured && supabaseServiceRoleKey
+export const supabaseAdmin = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -33,15 +21,6 @@ export const supabaseAdmin = isSupabaseConfigured && supabaseServiceRoleKey
       }
     })
   : null as any
-
-// デバッグログ（開発環境のみ）
-if (process.env.NODE_ENV === 'development') {
-  console.log('🔧 [SUPABASE DEBUG] Client initialization:', {
-    isSupabaseConfigured,
-    hasSupabaseClient: !!supabase,
-    hasSupabaseAdmin: !!supabaseAdmin
-  });
-}
 
 export function isSupabaseEnabled(): boolean {
   return !!isSupabaseConfigured
@@ -203,64 +182,122 @@ export async function insertSupabaseLoginHistory({ user_id, user_email, action }
 
 // Supabaseにチャットセッションを保存
 export async function saveSupabaseChatSession(session: any) {
-  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
-  const { data, error } = await supabaseAdmin
-    .from('chat_sessions')
-    .upsert([session], { onConflict: 'id' });
-  if (error) throw error;
-  return data;
+  // クライアントサイドでの実行を防ぐ
+  if (typeof window !== 'undefined') {
+    throw new Error('この関数はサーバーサイドでのみ利用可能です。');
+  }
+  
+  if (!supabaseAdmin || !isSupabaseConfigured) {
+    throw new Error('Supabase管理者クライアントが未設定です。デバイス間同期が利用できません。');
+  }
+  
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('chat_sessions')
+      .upsert([session], { onConflict: 'id' });
+    
+    if (error) {
+      console.error('🔧 [SUPABASE ERROR] Session save failed:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('🔧 [SUPABASE ERROR] Critical failure in saveSupabaseChatSession:', error);
+    throw error;
+  }
 }
 
 // Supabaseからユーザーのチャットセッション一覧を取得
 export async function getSupabaseChatSessions(user_id: string) {
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔧 [SUPABASE DEBUG] getSupabaseChatSessions called:', {
-      user_id,
-      hasSupabaseAdmin: !!supabaseAdmin,
-      isSupabaseConfigured: !!isSupabaseConfigured,
-      hasUrl: !!supabaseUrl,
-      hasServiceKey: !!supabaseServiceRoleKey
-    });
+  // クライアントサイドでの実行を防ぐ
+  if (typeof window !== 'undefined') {
+    throw new Error('この関数はサーバーサイドでのみ利用可能です。');
   }
   
-  if (!supabaseAdmin) {
-    const errorMsg = `Supabase管理者クライアントが未設定です。環境変数を確認してください:
-    - NEXT_PUBLIC_SUPABASE_URL: ${!!supabaseUrl}
-    - NEXT_PUBLIC_SUPABASE_ANON_KEY: ${!!supabaseAnonKey} 
-    - SUPABASE_SERVICE_ROLE_KEY: ${!!supabaseServiceRoleKey}`;
+
+  
+  if (!supabaseAdmin || !isSupabaseConfigured) {
+    const errorMsg = 'Supabase管理者クライアントが未設定です。この機能はサーバーサイドでのみ利用可能です。';
     console.error('🔧 [SUPABASE ERROR]', errorMsg);
     throw new Error(errorMsg);
   }
   
-  const { data, error } = await supabaseAdmin
-    .from('chat_sessions')
-    .select('*')
-    .eq('user_id', user_id)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('chat_sessions')
+      .select('*')
+      .eq('user_id', user_id)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('🔧 [SUPABASE ERROR] Database query failed:', error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('🔧 [SUPABASE ERROR] Critical failure in getSupabaseChatSessions:', error);
+    throw error;
+  }
 }
 
 // Supabaseにチャットメッセージを保存
 export async function saveSupabaseChatMessage(message: any) {
-  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
-  const { data, error } = await supabaseAdmin
-    .from('chat_messages')
-    .insert([message]);
-  if (error) throw error;
-  return data;
+  // クライアントサイドでの実行を防ぐ
+  if (typeof window !== 'undefined') {
+    throw new Error('この関数はサーバーサイドでのみ利用可能です。');
+  }
+  
+  if (!supabaseAdmin || !isSupabaseConfigured) {
+    throw new Error('Supabase管理者クライアントが未設定です。デバイス間同期が利用できません。');
+  }
+  
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('chat_messages')
+      .insert([message]);
+    
+    if (error) {
+      console.error('🔧 [SUPABASE ERROR] Message save failed:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('🔧 [SUPABASE ERROR] Critical failure in saveSupabaseChatMessage:', error);
+    throw error;
+  }
 }
 
 // Supabaseからチャットセッションのメッセージ一覧を取得
 export async function getSupabaseChatMessages(session_id: string) {
-  if (!supabaseAdmin) throw new Error('Supabase管理者クライアントが未設定です');
-  const { data, error } = await supabaseAdmin
-    .from('chat_messages')
-    .select('*')
-    .eq('session_id', session_id)
-    .order('timestamp', { ascending: true });
-  if (error) throw error;
-  return data || [];
+  // クライアントサイドでの実行を防ぐ
+  if (typeof window !== 'undefined') {
+    throw new Error('この関数はサーバーサイドでのみ利用可能です。');
+  }
+  
+  if (!supabaseAdmin || !isSupabaseConfigured) {
+    throw new Error('Supabase管理者クライアントが未設定です。デバイス間同期が利用できません。');
+  }
+  
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('chat_messages')
+      .select('*')
+      .eq('session_id', session_id)
+      .order('timestamp', { ascending: true });
+    
+    if (error) {
+      console.error('🔧 [SUPABASE ERROR] Messages load failed:', error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('🔧 [SUPABASE ERROR] Critical failure in getSupabaseChatMessages:', error);
+    throw error;
+  }
 }
 // Supabaseでユーザー名を更新
 export async function updateSupabaseUserName(user_id: string, name: string) {

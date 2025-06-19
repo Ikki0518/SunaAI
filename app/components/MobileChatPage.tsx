@@ -21,17 +21,7 @@ export default function MobileChatPage() {
 
   useEffect(() => {
     setMounted(true);
-    if (status !== "loading") {
-      loadChatHistory();
-    }
-  }, [status]);
-
-  // セッションが変更された時に再読み込み
-  useEffect(() => {
-    if (mounted && session?.user?.id) {
-      loadChatHistory();
-    }
-  }, [mounted, session?.user?.id]);
+  }, []);
 
   const loadChatHistory = async () => {
     try {
@@ -65,7 +55,7 @@ export default function MobileChatPage() {
     if (mounted && status !== "loading") {
       loadChatHistory();
     }
-  }, [mounted, status]); // session?.user?.idを依存配列から削除
+  }, [mounted, status]);
 
   // 🔄 ローカル同期リスナー（認証されている場合のみ）
   useEffect(() => {

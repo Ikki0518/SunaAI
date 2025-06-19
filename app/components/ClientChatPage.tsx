@@ -63,10 +63,21 @@ export default function ClientChatPage() {
       setSyncStatus('syncing');
       console.log('🔄 [SYNC STATUS] Testing Supabase connection...');
       
-      // Supabase接続テスト
-      const sessions = await ChatHistoryManager.loadAllSessions(session.user.id);
-      console.log('✅ [SYNC STATUS] Supabase connection successful:', sessions.length, 'sessions');
-      setSyncStatus('connected');
+      // 軽量な接続テスト（データ読み込みはしない）
+      const response = await fetch('/api/chat-sessions', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        console.log('✅ [SYNC STATUS] Supabase connection successful');
+        setSyncStatus('connected');
+      } else {
+        console.warn('⚠️ [SYNC STATUS] Supabase connection test failed:', response.status);
+        setSyncStatus('disconnected');
+      }
     } catch (error) {
       console.error('❌ [SYNC STATUS] Supabase connection failed:', error);
       console.error('❌ [SYNC STATUS] Error details:', {

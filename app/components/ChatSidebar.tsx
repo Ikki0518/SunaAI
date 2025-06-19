@@ -64,7 +64,7 @@ export default function ChatSidebar({
     if (mounted) {
       loadChatHistory();
     }
-  }, [mounted]); // session?.user?.idとloadChatHistoryを依存配列から削除
+  }, [mounted, loadChatHistory]);
 
   // 🔄 ローカル同期リスナー（認証されている場合のみ）
   useEffect(() => {
@@ -76,7 +76,7 @@ export default function ChatSidebar({
     });
 
     return cleanup;
-  }, [mounted, session?.user?.id]); // loadChatHistoryを依存配列から削除
+  }, [mounted, session?.user?.id, loadChatHistory]);
 
   const handleDeleteSession = (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -86,6 +86,7 @@ export default function ChatSidebar({
     try {
       ChatHistoryManager.deleteChatSession(sessionId);
       setChatSessions(prev => prev.filter(s => s.id !== sessionId));
+      console.log('🗑️ [SIDEBAR] Session deleted successfully:', sessionId);
     } catch (error) {
       console.error('Failed to delete chat session:', error);
       alert('チャットの削除に失敗しました');

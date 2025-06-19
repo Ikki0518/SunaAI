@@ -426,13 +426,27 @@ export default function MobileChatPage() {
                           {chatSession.title}
                         </h4>
                         <p className="text-sm text-gray-500 mt-1">
-                          {new Date(chatSession.updatedAt).toLocaleDateString('ja-JP', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          {(() => {
+                            try {
+                              if (!chatSession.updatedAt || isNaN(chatSession.updatedAt) || chatSession.updatedAt <= 0) {
+                                return '不明';
+                              }
+                              const date = new Date(chatSession.updatedAt);
+                              if (isNaN(date.getTime())) {
+                                return '不明';
+                              }
+                              return date.toLocaleDateString('ja-JP', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              });
+                            } catch (error) {
+                              console.warn('⚠️ [MOBILE] Date formatting error:', chatSession.updatedAt, error);
+                              return '不明';
+                            }
+                          })()}
                         </p>
                         {chatSession.messages && chatSession.messages.length > 0 && (
                           <p className="text-sm text-gray-600 mt-2 line-clamp-2">

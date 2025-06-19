@@ -64,15 +64,43 @@ export class ChatHistoryManager {
       console.log('🐘 [SYNC] Loaded sessions from Supabase via API:', supabaseSessions.length);
       
       // Supabaseの形式から ChatSession 形式に変換
-      const sessions: ChatSession[] = supabaseSessions.map((session: any) => ({
-        id: session.id,
-        title: session.title,
-        messages: [], // 後で個別に読み込み
-        conversationId: session.conversation_id,
-        createdAt: new Date(session.created_at).getTime(),
-        updatedAt: new Date(session.updated_at).getTime(),
-        isPinned: session.is_pinned || false
-      }));
+      const sessions: ChatSession[] = supabaseSessions.map((session: any) => {
+        // タイムスタンプの安全な変換
+        let createdAt = Date.now();
+        let updatedAt = Date.now();
+
+        try {
+          if (session.created_at) {
+            const createdDate = new Date(session.created_at);
+            if (!isNaN(createdDate.getTime())) {
+              createdAt = createdDate.getTime();
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ [SYNC] Invalid created_at timestamp for session:', session.id, session.created_at);
+        }
+
+        try {
+          if (session.updated_at) {
+            const updatedDate = new Date(session.updated_at);
+            if (!isNaN(updatedDate.getTime())) {
+              updatedAt = updatedDate.getTime();
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ [SYNC] Invalid updated_at timestamp for session:', session.id, session.updated_at);
+        }
+
+        return {
+          id: session.id,
+          title: session.title || '無題のチャット',
+          messages: [], // 後で個別に読み込み
+          conversationId: session.conversation_id,
+          createdAt,
+          updatedAt,
+          isPinned: session.is_pinned || false
+        };
+      });
       
       console.log('✅ [API DEBUG] Successfully converted sessions:', sessions.length);
       return sessions;
@@ -314,15 +342,34 @@ export class ChatHistoryManager {
       const supabaseSessions = await this.loadSessionsFromSupabase(user_id);
       console.log('✅ [LOAD] Supabase sessions loaded successfully:', supabaseSessions.length);
       
+      // 各セッションのメッセージを読み込み
+      const sessionsWithMessages = await Promise.all(
+        supabaseSessions.map(async (session) => {
+          try {
+            const messages = await this.loadMessagesFromSupabase(session.id);
+            return {
+              ...session,
+              messages
+            };
+          } catch (messageError) {
+            console.warn('⚠️ [LOAD] Failed to load messages for session:', session.id, messageError);
+            return session; // メッセージが読み込めなくてもセッションは残す
+          }
+        })
+      );
+      
+      console.log('✅ [LOAD] Sessions with messages loaded:', 
+        sessionsWithMessages.map(s => `${s.title}: ${s.messages.length} messages`).join(', '));
+      
       // ローカルキャッシュに保存
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem(this.getLocalStorageKey() + '_cache', JSON.stringify(supabaseSessions));
+          localStorage.setItem(this.getLocalStorageKey() + '_cache', JSON.stringify(sessionsWithMessages));
         } catch (cacheError) {
           console.warn('⚠️ [LOAD] Cache save failed:', cacheError);
         }
       }
-      return supabaseSessions;
+      return sessionsWithMessages;
       
     } catch (supabaseError) {
       console.error('❌ [LOAD] Supabase load failed, falling back to local storage');

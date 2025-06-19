@@ -136,17 +136,33 @@ export default function ChatSidebar({
   const formatDate = (timestamp: number) => {
     if (!mounted) return '';
     
-    const date = new Date(timestamp);
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    // タイムスタンプの検証
+    if (!timestamp || isNaN(timestamp) || timestamp <= 0) {
+      return '不明';
+    }
     
-    if (date >= today) {
-      return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-    } else if (date >= yesterday) {
-      return '昨日';
-    } else {
-      return date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+    try {
+      const date = new Date(timestamp);
+      
+      // 日付オブジェクトの検証
+      if (isNaN(date.getTime())) {
+        return '不明';
+      }
+      
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+      
+      if (date >= today) {
+        return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      } else if (date >= yesterday) {
+        return '昨日';
+      } else {
+        return date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+      }
+    } catch (error) {
+      console.warn('⚠️ [SIDEBAR] Date formatting error:', timestamp, error);
+      return '不明';
     }
   };
 

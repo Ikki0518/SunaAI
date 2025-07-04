@@ -6,26 +6,16 @@ import { authOptions } from '@/app/lib/auth';
 // チャットセッション一覧取得
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔧 [CHAT-SESSIONS API] GET request received');
-    
     const session = await getServerSession(authOptions);
-    console.log('🔧 [CHAT-SESSIONS API] Session check:', {
-      hasSession: !!session,
-      userEmail: session?.user?.email,
-      userId: session?.user?.id
-    });
 
     // ログインしていない場合は空配列を返す（エラーにしない）
     if (!session?.user?.id) {
-      console.log('🔧 [CHAT-SESSIONS API] No authenticated user - returning empty sessions');
       return NextResponse.json({ sessions: [] });
     }
 
     const user_id = session.user.id;
-    console.log('🔧 [CHAT-SESSIONS API] Loading sessions for user:', user_id.slice(0, 8) + '...');
     
     const sessions = await getSupabaseChatSessions(user_id);
-    console.log('🔧 [CHAT-SESSIONS API] Successfully loaded sessions:', sessions.length);
     
     return NextResponse.json({ sessions });
   } catch (error) {
@@ -46,28 +36,15 @@ export async function GET(request: NextRequest) {
 // チャットセッション保存
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔧 [CHAT-SESSIONS API] POST request received');
-    
     const session = await getServerSession(authOptions);
-    console.log('🔧 [CHAT-SESSIONS API] Session check:', {
-      hasSession: !!session,
-      userEmail: session?.user?.email
-    });
 
     // ログインしていない場合はエラーを返す（保存はログイン必須）
     if (!session?.user?.id) {
-      console.log('🔧 [CHAT-SESSIONS API] Unauthorized - no session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user_id = session.user.id;
     const { chatSession } = await request.json();
-    
-    console.log('🔧 [CHAT-SESSIONS API] Saving session:', {
-      sessionId: chatSession?.id,
-      userId: user_id.slice(0, 8) + '...',
-      title: chatSession?.title
-    });
     
     if (!chatSession) {
       return NextResponse.json({ error: 'Chat session data required' }, { status: 400 });
@@ -84,7 +61,6 @@ export async function POST(request: NextRequest) {
       // updated_at: new Date(chatSession.updatedAt || Date.now()).toISOString()
     });
     
-    console.log('🔧 [CHAT-SESSIONS API] Successfully saved session');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('🔧 [CHAT-SESSIONS API] Failed to save chat session:', error);

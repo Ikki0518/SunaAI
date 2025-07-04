@@ -12,4 +12,5 @@ export interface ChatSession {
   createdAt: number;
   updatedAt: number;
   isPinned?: boolean;
+  isManuallyRenamed?: boolean;  // 手動でタイトルが変更されたかのフラグ
 }

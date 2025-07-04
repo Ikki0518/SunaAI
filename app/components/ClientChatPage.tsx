@@ -90,11 +90,23 @@ export default function ClientChatPage() {
 
   const saveCurrentSession = useCallback(async () => {
     if (!mounted || !currentSession || messages.length === 0) return;
+    
+    console.log('💾 [SAVE] Saving current session:', {
+      sessionId: currentSession.id,
+      messageCount: messages.length,
+      isManuallyRenamed: currentSession.isManuallyRenamed
+    });
+    
+    // 手動でリネームされていない場合のみ自動生成
+    const title = currentSession.isManuallyRenamed
+      ? currentSession.title
+      : (messages.length > 0 ? ChatHistoryManager.generateSessionTitle(messages) : currentSession.title);
+    
     const updatedSession: ChatSession = {
       ...currentSession,
       messages,
       conversationId: conversationId || undefined,
-      title: messages.length > 0 ? ChatHistoryManager.generateSessionTitle(messages) : currentSession.title,
+      title,
       updatedAt: Date.now(),
     };
     
@@ -119,12 +131,14 @@ export default function ClientChatPage() {
 
   useEffect(() => {
     if (messages.length > 0 && mounted && currentSession) {
+      // セッション保存の頻度を減らし、最後のメッセージから5秒後に保存
       const timeoutId = setTimeout(() => {
+        console.log('⏰ [AUTO SAVE] Saving session after delay...');
         saveCurrentSession();
-      }, 2000);
+      }, 5000);
       return () => clearTimeout(timeoutId);
     }
-  }, [messages, conversationId, mounted, currentSession, saveCurrentSession]);
+  }, [messages.length, conversationId, mounted, currentSession, saveCurrentSession]); // messagesではなくmessages.lengthを監視
 
   const handleNewChat = () => {
     saveCurrentSession();
@@ -142,7 +156,24 @@ export default function ClientChatPage() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || loading) return;
+    console.log('🔧 [CLIENT] handleSend called, input:', input, 'loading:', loading);
+    console.log('🔧 [CLIENT] currentSession:', currentSession);
+    
+    if (!input.trim()) {
+      console.log('🔧 [CLIENT] Input is empty, returning');
+      return;
+    }
+    
+    if (loading) {
+      console.log('🔧 [CLIENT] Loading is true, returning');
+      return;
+    }
+    
+    if (!currentSession) {
+      console.log('🔧 [CLIENT] No current session, creating new one');
+      const newSession = ChatHistoryManager.createNewSession();
+      setCurrentSession(newSession);
+    }
     const userMessage = input;
     setInput("");
     const userMsg: ChatMessage = { role: "user", content: userMessage, timestamp: Date.now() };
@@ -285,11 +316,45 @@ export default function ClientChatPage() {
                   )}
                   <p className="text-lg text-gray-500 mb-8">今日は何についてお話ししましょうか？</p>
                   <button
-                    onClick={() => {
-                      setInput("こんにちは");
-                      handleSend();
+                    onClick={async () => {
+                      // 既に送信中の場合は何もしない
+                      if (loading) return;
+                      
+                      // 直接メッセージを送信（入力フィールドを経由しない）
+                      const userMessage = "こんにちは";
+                      const userMsg: ChatMessage = { role: "user", content: userMessage, timestamp: Date.now() };
+                      setMessages(prev => [...prev, userMsg]);
+                      setLoading(true);
+
+                      try {
+                        const res = await fetch("/api/chat", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            message: userMessage,
+                            conversationId: conversationId
+                          }),
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.answer) {
+                          const botMsg: ChatMessage = { role: "bot", content: data.answer, timestamp: Date.now() };
+                          setMessages(prev => [...prev, botMsg]);
+                          if (data.conversationId) {
+                            setConversationId(data.conversationId);
+                          }
+                        } else {
+                          const errorMsg: ChatMessage = { role: "bot", content: "エラーが発生しました", timestamp: Date.now() };
+                          setMessages(prev => [...prev, errorMsg]);
+                        }
+                      } catch (error) {
+                        const errorMsg: ChatMessage = { role: "bot", content: "エラーが発生しました", timestamp: Date.now() };
+                        setMessages(prev => [...prev, errorMsg]);
+                      } finally {
+                        setLoading(false);
+                      }
                     }}
-                    className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 ease-in-out transform bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl hover:from-blue-600 hover:to-blue-700 hover:scale-105 hover:shadow-xl"
+                    disabled={loading}
+                    className={`group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 ease-in-out transform bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl hover:from-blue-600 hover:to-blue-700 hover:scale-105 hover:shadow-xl ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <span className="absolute inset-0 w-full h-full transition duration-200 ease-out transform translate-x-1 translate-y-1 bg-gradient-to-r from-blue-600 to-blue-700 group-hover:-translate-x-0 group-hover:-translate-y-0"></span>
                     <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500 to-blue-600 border-2 border-blue-600 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-blue-700"></span>
@@ -372,6 +437,7 @@ export default function ClientChatPage() {
             <form
               onSubmit={e => {
                 e.preventDefault();
+                console.log('🔧 [CLIENT] Form submitted');
                 handleSend();
               }}
               className="flex items-end space-x-4"

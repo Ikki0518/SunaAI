@@ -12,12 +12,12 @@ interface ChatSidebarProps {
   onToggle: () => void;
 }
 
-export default function ChatSidebar({ 
-  currentSessionId, 
-  onSessionSelect, 
-  onNewChat, 
-  isOpen, 
-  onToggle 
+export default function ChatSidebar({
+  currentSessionId,
+  onSessionSelect,
+  onNewChat,
+  isOpen,
+  onToggle
 }: ChatSidebarProps) {
   const { data: session } = useSession();
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -25,6 +25,8 @@ export default function ChatSidebar({
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorCount, setErrorCount] = useState(0);
+  const [lastLoadTime, setLastLoadTime] = useState<number>(0);
 
   // SSR回避のためのマウント確認
   useEffect(() => {
@@ -34,15 +36,41 @@ export default function ChatSidebar({
   const loadChatHistory = useCallback(async () => {
     if (loading) return;
     
+    // 短時間での連続読み込みを防止（5秒）
+    const now = Date.now();
+    if (now - lastLoadTime < 5000) {
+      console.log('⏸️ [SIDEBAR] Skipping load - too soon after last load');
+      return;
+    }
+    
+    // エラーが多発している場合は読み込みを制限
+    if (errorCount >= 3) {
+      console.log('⏸️ [SIDEBAR] Skipping load - too many errors');
+      return;
+    }
+    
+    console.log('🔍 [DEBUG] loadChatHistory called, loading:', loading);
+    
     try {
       setLoading(true);
+      setLastLoadTime(now);
+      
+      // 重複セッションをクリーンアップ
+      ChatHistoryManager.cleanupDuplicateSessions();
       
       // 認証されている場合のみSupabaseから読み込み、そうでない場合はローカルのみ
       if (session?.user?.id) {
         console.log('🐘 [SIDEBAR] Loading from Supabase + Local for user:', session.user.id);
         const sessions = await ChatHistoryManager.loadAllSessions(session.user.id);
-        setChatSessions(sessions);
-        console.log('🐘 [SIDEBAR] Chat history loaded:', sessions.length, 'sessions');
+        
+        // サイドバーレベルで重複除去を実行
+        console.log('🧹 [SIDEBAR] Original sessions count:', sessions.length);
+        const deduplicatedSessions = ChatHistoryManager.deduplicateSessionsByTitle(sessions);
+        console.log('🧹 [SIDEBAR] After deduplication:', deduplicatedSessions.length);
+        
+        setChatSessions(deduplicatedSessions);
+        console.log('🐘 [SIDEBAR] Chat history loaded:', deduplicatedSessions.length, 'sessions');
+        setErrorCount(0); // 成功したらエラーカウントをリセット
       } else {
         console.log('👤 [SIDEBAR] Guest user - loading from local storage only');
         const localSessions = ChatHistoryManager.getSortedSessions();
@@ -51,32 +79,49 @@ export default function ChatSidebar({
       }
     } catch (error) {
       console.error('Failed to load chat history:', error);
+      setErrorCount(prev => prev + 1);
+      
       // フォールバック: ローカルストレージのみ
       const localSessions = ChatHistoryManager.getSortedSessions();
       setChatSessions(localSessions);
     } finally {
       setLoading(false);
     }
-  }, [session?.user?.id, loading]);
+  }, [session?.user?.id, loading, lastLoadTime, errorCount]);
 
   // 🔄 初回読み込みのみ（無限ループ防止）
   useEffect(() => {
-    if (mounted) {
+    if (mounted && !loading) {
+      console.log('🔍 [DEBUG] Initial load effect triggered');
       loadChatHistory();
     }
-  }, [mounted, loadChatHistory]);
+  }, [mounted]); // loadChatHistoryを依存配列から削除
 
   // 🔄 ローカル同期リスナー（認証されている場合のみ）
   useEffect(() => {
     if (!mounted || !session?.user?.id) return;
 
+    console.log('🔍 [DEBUG] Local sync listener temporarily disabled to prevent infinite loop');
+    
+    // 一時的に無効化
+    /*
+    console.log('🔍 [DEBUG] Setting up local sync listener');
+    let listenerCount = 0;
+    
     const cleanup = ChatHistoryManager.setupLocalSyncListener(() => {
-      console.log('📡 [LOCAL SYNC] Refreshing chat history due to update');
-      loadChatHistory();
+      listenerCount++;
+      console.log(`📡 [LOCAL SYNC] Refreshing chat history due to update (call #${listenerCount})`);
+      if (!loading) {
+        loadChatHistory();
+      }
     });
 
-    return cleanup;
-  }, [mounted, session?.user?.id, loadChatHistory]);
+    return () => {
+      console.log('🔍 [DEBUG] Cleaning up local sync listener');
+      cleanup?.();
+    };
+    */
+  }, [mounted, session?.user?.id]); // loadChatHistoryを依存配列から削除
 
   const handleDeleteSession = (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();

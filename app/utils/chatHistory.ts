@@ -58,9 +58,22 @@ export class ChatHistoryManager {
 
       console.log('🚀 [API DEBUG] About to parse response as JSON...');
       const responseData = await response.json();
-      console.log('🚀 [API DEBUG] Response data:', responseData);
+      console.log('🚀 [API DEBUG] Response data type:', typeof responseData);
+      console.log('🚀 [API DEBUG] Response data keys:', Object.keys(responseData));
+      console.log('🚀 [API DEBUG] Response data:', JSON.stringify(responseData, null, 2));
       
       const { sessions: supabaseSessions } = responseData;
+      
+      if (!supabaseSessions) {
+        console.error('❌ [API DEBUG] No sessions field in response data');
+        throw new Error('Response does not contain sessions field');
+      }
+      
+      if (!Array.isArray(supabaseSessions)) {
+        console.error('❌ [API DEBUG] Sessions field is not an array:', typeof supabaseSessions);
+        throw new Error('Sessions field is not an array');
+      }
+      
       console.log('🐘 [SYNC] Loaded sessions from Supabase via API:', supabaseSessions.length);
       
       // Supabaseの形式から ChatSession 形式に変換
@@ -133,6 +146,13 @@ export class ChatHistoryManager {
   // API経由でSupabaseにチャットメッセージを保存
   static async saveMessageToSupabase(message: ChatMessage, session_id: string, user_id: string) {
     try {
+      console.log('💾 [DEBUG] Saving message to Supabase:', {
+        session_id,
+        role: message.role,
+        content: message.content.substring(0, 20) + '...',
+        timestamp: message.timestamp
+      });
+      
       const response = await fetch('/api/chat-messages', {
         method: 'POST',
         headers: {
@@ -245,15 +265,21 @@ export class ChatHistoryManager {
       userId: user_id,
       messageCount: session.messages?.length || 0,
       hasUserId: !!user_id,
-      sessionTitle: session.title
+      sessionTitle: session.title,
+      isManuallyRenamed: session.isManuallyRenamed
     });
     
-    // ユーザーIDがない場合は一時キャッシュのみ（同期なし）
+    // ユーザーIDがない場合はローカルストレージのみに保存
     if (!user_id) {
-      console.log('⚠️ [SYNC DEBUG] No user ID - saving to cache only (no cross-device sync)');
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(this.getLocalStorageKey() + '_temp', JSON.stringify([session]));
-      }
+      console.log('⚠️ [SYNC DEBUG] No user ID - saving to local storage only');
+      
+      // ローカルストレージに保存
+      this.saveChatSession(session);
+      
+      // ローカルイベントをブロードキャスト（タブ間同期）
+      this.broadcastChatUpdate(session);
+      
+      console.log('✅ [SYNC DEBUG] Guest session saved to local storage');
       return;
     }
 
@@ -342,9 +368,12 @@ export class ChatHistoryManager {
       const supabaseSessions = await this.loadSessionsFromSupabase(user_id);
       console.log('✅ [LOAD] Supabase sessions loaded successfully:', supabaseSessions.length);
       
-      // 各セッションのメッセージを読み込み
+      // 各セッションのメッセージを読み込み（最初の5つのセッションのみ）
+      const sessionsToLoadMessages = supabaseSessions.slice(0, 5);
+      const sessionsWithoutMessages = supabaseSessions.slice(5);
+      
       const sessionsWithMessages = await Promise.all(
-        supabaseSessions.map(async (session) => {
+        sessionsToLoadMessages.map(async (session) => {
           try {
             const messages = await this.loadMessagesFromSupabase(session.id);
             return {
@@ -358,18 +387,31 @@ export class ChatHistoryManager {
         })
       );
       
-      console.log('✅ [LOAD] Sessions with messages loaded:', 
-        sessionsWithMessages.map(s => `${s.title}: ${s.messages.length} messages`).join(', '));
+      // 残りのセッションは空のメッセージ配列で初期化
+      const allSessions = [
+        ...sessionsWithMessages,
+        ...sessionsWithoutMessages.map(session => ({
+          ...session,
+          messages: []
+        }))
+      ];
+      
+      console.log('✅ [LOAD] Sessions loaded:',
+        `${sessionsToLoadMessages.length} with messages, ${sessionsWithoutMessages.length} without`);
+      
+      // 重複セッションを除去
+      const deduplicatedSessions = this.deduplicateSessionsByTitle(allSessions);
+      console.log('🧹 [LOAD] Deduplicated sessions:', allSessions.length, '→', deduplicatedSessions.length);
       
       // ローカルキャッシュに保存
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem(this.getLocalStorageKey() + '_cache', JSON.stringify(sessionsWithMessages));
+          localStorage.setItem(this.getLocalStorageKey() + '_cache', JSON.stringify(deduplicatedSessions));
         } catch (cacheError) {
           console.warn('⚠️ [LOAD] Cache save failed:', cacheError);
         }
       }
-      return sessionsWithMessages;
+      return deduplicatedSessions;
       
     } catch (supabaseError) {
       console.error('❌ [LOAD] Supabase load failed, falling back to local storage');
@@ -491,7 +533,10 @@ export class ChatHistoryManager {
       if (sessionIndex !== -1) {
         sessions[sessionIndex].title = newTitle;
         sessions[sessionIndex].updatedAt = Date.now();
+        sessions[sessionIndex].isManuallyRenamed = true; // 手動変更フラグを設定
         localStorage.setItem(this.getLocalStorageKey(), JSON.stringify(sessions));
+        
+        console.log('✏️ [RENAME] Session renamed manually:', sessionId, newTitle);
         
         // リネームもブロードキャスト
         window.dispatchEvent(new CustomEvent('chatHistoryUpdated', {
@@ -549,17 +594,36 @@ export class ChatHistoryManager {
 
   // メッセージからセッションタイトルを生成
   static generateSessionTitle(messages: ChatMessage[]): string {
+    console.log('🏷️ [TITLE] Generating title from messages:', messages.length);
+    
     if (messages.length === 0) return '新しいチャット';
     
-    const firstUserMessage = messages.find(m => m.role === 'user');
-    if (!firstUserMessage) return '新しいチャット';
+    // ユーザーメッセージを全て取得
+    const userMessages = messages.filter(m => m.role === 'user');
+    console.log('🏷️ [TITLE] User messages found:', userMessages.length);
+    
+    if (userMessages.length === 0) return '新しいチャット';
+    
+    // 最初のメッセージが「こんにちは」などの挨拶の場合、2個目・3個目のメッセージを優先
+    let titleMessage = userMessages[0];
+    
+    if (userMessages.length > 1) {
+      const greetings = ['こんにちは', 'おはよう', 'こんばんは', 'やあ', 'ハロー', 'hello', 'hi'];
+      const firstMessageLower = userMessages[0].content.toLowerCase().trim();
+      
+      if (greetings.some(greeting => firstMessageLower.includes(greeting))) {
+        console.log('🏷️ [TITLE] First message is greeting, using second message');
+        titleMessage = userMessages[1];
+      }
+    }
     
     // 最初の30文字を取得し、改行を除去
-    const title = firstUserMessage.content
+    const title = titleMessage.content
       .replace(/\n/g, ' ')
       .substring(0, 30);
     
-    return title.length < firstUserMessage.content.length ? title + '...' : title;
+    console.log('🏷️ [TITLE] Generated title:', title);
+    return title.length < titleMessage.content.length ? title + '...' : title;
   }
 
   // チャットセッションを保存（メッセージを含む）
@@ -567,19 +631,148 @@ export class ChatHistoryManager {
     try {
       if (typeof window === 'undefined') return;
       
+      console.log('💾 [SAVE DEBUG] Starting session save:', {
+        sessionId: session.id,
+        title: session.title,
+        messageCount: session.messages?.length || 0,
+        timestamp: new Date().toLocaleTimeString()
+      });
+      
       const sessions = this.getSortedSessions();
       const existingIndex = sessions.findIndex(s => s.id === session.id);
       
+      console.log('💾 [SAVE DEBUG] Current sessions count:', sessions.length);
+      console.log('💾 [SAVE DEBUG] Existing session index:', existingIndex);
+      
+      // 重複タイトルチェック - 同じタイトルのセッションがある場合は統合
+      if (existingIndex === -1) {
+        const duplicateByTitle = sessions.findIndex(s =>
+          s.title === session.title &&
+          s.title !== '新しいチャット' &&
+          Math.abs(s.createdAt - session.createdAt) < 60000 // 1分以内に作成されたもの
+        );
+        
+        if (duplicateByTitle !== -1) {
+          console.log('⚠️ [SAVE DEBUG] Duplicate title detected, merging sessions:', session.title);
+          // 既存のセッションにメッセージをマージ
+          const existingSession = sessions[duplicateByTitle];
+          existingSession.messages = session.messages;
+          existingSession.updatedAt = session.updatedAt;
+          existingSession.conversationId = session.conversationId;
+          localStorage.setItem(this.getLocalStorageKey(), JSON.stringify(sessions));
+          console.log('✅ [SAVE DEBUG] Sessions merged successfully');
+          return;
+        }
+      }
+      
       if (existingIndex !== -1) {
+        console.log('🔄 [SAVE DEBUG] Updating existing session');
         sessions[existingIndex] = session;
       } else {
+        console.log('➕ [SAVE DEBUG] Adding new session');
         sessions.push(session);
       }
       
       localStorage.setItem(this.getLocalStorageKey(), JSON.stringify(sessions));
+      console.log('✅ [SAVE DEBUG] Session saved successfully, total sessions:', sessions.length);
     } catch (error) {
-      console.error('Failed to save chat session:', error);
+      console.error('❌ [SAVE DEBUG] Failed to save chat session:', error);
       throw error;
+    }
+  }
+
+  // タイトルによる重複セッション除去
+  static deduplicateSessionsByTitle(sessions: ChatSession[]): ChatSession[] {
+    const sessionGroups = new Map<string, ChatSession[]>();
+    
+    // タイトルでグループ化
+    sessions.forEach(session => {
+      const title = session.title || 'Untitled';
+      if (!sessionGroups.has(title)) {
+        sessionGroups.set(title, []);
+      }
+      sessionGroups.get(title)!.push(session);
+    });
+    
+    const deduplicatedSessions: ChatSession[] = [];
+    
+    sessionGroups.forEach((group, title) => {
+      if (group.length > 1) {
+        console.log('🔍 [DEDUPE] Found duplicates for title:', title, 'count:', group.length);
+        
+        // 最も多くのメッセージを持つセッションを選択
+        const bestSession = group.reduce((best, current) => {
+          const bestMsgCount = best.messages?.length || 0;
+          const currentMsgCount = current.messages?.length || 0;
+          const bestCreatedAt = best.createdAt || 0;
+          const currentCreatedAt = current.createdAt || 0;
+          
+          // メッセージ数が多い方を優先、同じ場合は新しい方を優先
+          if (currentMsgCount > bestMsgCount) {
+            return current;
+          } else if (currentMsgCount === bestMsgCount && currentCreatedAt > bestCreatedAt) {
+            return current;
+          }
+          return best;
+        });
+        
+        console.log('✅ [DEDUPE] Selected session for', title, '- messages:', bestSession.messages?.length || 0, 'id:', bestSession.id);
+        deduplicatedSessions.push(bestSession);
+      } else {
+        deduplicatedSessions.push(group[0]);
+      }
+    });
+    
+    // 作成日時でソート
+    return deduplicatedSessions.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }
+
+  // 重複セッションをクリーンアップする
+  static cleanupDuplicateSessions(): void {
+    try {
+      if (typeof window === 'undefined') return;
+      
+      const sessions = this.getSortedSessions();
+      console.log('🧹 [CLEANUP] Starting cleanup, total sessions:', sessions.length);
+      
+      // タイトルとタイムスタンプでグループ化
+      const sessionGroups = new Map<string, ChatSession[]>();
+      
+      sessions.forEach(session => {
+        const key = `${session.title}_${Math.floor(session.createdAt / 60000)}`; // 1分単位でグループ化
+        if (!sessionGroups.has(key)) {
+          sessionGroups.set(key, []);
+        }
+        sessionGroups.get(key)!.push(session);
+      });
+      
+      const cleanedSessions: ChatSession[] = [];
+      
+      sessionGroups.forEach((group, key) => {
+        if (group.length > 1) {
+          console.log('🧹 [CLEANUP] Found duplicate group:', key, 'count:', group.length);
+          // 最新のセッション（最も多くのメッセージを持つ）を保持
+          const bestSession = group.reduce((best, current) => {
+            const bestMsgCount = best.messages?.length || 0;
+            const currentMsgCount = current.messages?.length || 0;
+            return currentMsgCount > bestMsgCount ? current : best;
+          });
+          cleanedSessions.push(bestSession);
+          console.log('🧹 [CLEANUP] Keeping session:', bestSession.id, 'with', bestSession.messages?.length || 0, 'messages');
+        } else {
+          cleanedSessions.push(group[0]);
+        }
+      });
+      
+      if (cleanedSessions.length < sessions.length) {
+        localStorage.setItem(this.getLocalStorageKey(), JSON.stringify(cleanedSessions));
+        console.log('🧹 [CLEANUP] Cleanup completed. Removed', sessions.length - cleanedSessions.length, 'duplicates');
+        console.log('🧹 [CLEANUP] Final session count:', cleanedSessions.length);
+      } else {
+        console.log('🧹 [CLEANUP] No duplicates found');
+      }
+    } catch (error) {
+      console.error('❌ [CLEANUP] Cleanup failed:', error);
     }
   }
 }

@@ -23,6 +23,7 @@ export default function ClientChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'connected' | 'disconnected' | 'syncing'>('disconnected');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -89,45 +90,56 @@ export default function ClientChatPage() {
   };
 
   const saveCurrentSession = useCallback(async () => {
-    if (!mounted || !currentSession || messages.length === 0) return;
-    
-    console.log('💾 [SAVE] Saving current session:', {
-      sessionId: currentSession.id,
-      messageCount: messages.length,
-      isManuallyRenamed: currentSession.isManuallyRenamed
-    });
-    
-    // 手動でリネームされていない場合のみ自動生成
-    const title = currentSession.isManuallyRenamed
-      ? currentSession.title
-      : (messages.length > 0 ? ChatHistoryManager.generateSessionTitle(messages) : currentSession.title);
-    
-    const updatedSession: ChatSession = {
-      ...currentSession,
-      messages,
-      conversationId: conversationId || undefined,
-      title,
-      updatedAt: Date.now(),
-    };
-    
-    // 認証されている場合のみSupabase同期、されていない場合はローカルのみ
-    if (session?.user?.id) {
-      try {
-        setSyncStatus('syncing');
-        await ChatHistoryManager.syncChatSession(updatedSession, session.user.id);
-        setSyncStatus('connected');
-      } catch (error) {
-        console.error('チャット保存エラー:', error);
-        setSyncStatus('disconnected');
-        // エラーが発生してもローカル保存は継続
-        ChatHistoryManager.saveChatSession(updatedSession);
+    if (!mounted || !currentSession || messages.length === 0 || isSaving) {
+      if (isSaving) {
+        console.log('⏸️ [SAVE] Skipping save - already saving');
       }
-    } else {
-      // ゲストユーザーの場合はローカルストレージのみ
-      ChatHistoryManager.saveChatSession(updatedSession);
-      console.log('👤 [GUEST] Chat saved to localStorage only');
+      return;
     }
-  }, [mounted, currentSession, messages, conversationId, session?.user?.id]);
+    
+    setIsSaving(true);
+    
+    try {
+      console.log('💾 [SAVE] Saving current session:', {
+        sessionId: currentSession.id,
+        messageCount: messages.length,
+        isManuallyRenamed: currentSession.isManuallyRenamed
+      });
+      
+      // 手動でリネームされていない場合のみ自動生成
+      const title = currentSession.isManuallyRenamed
+        ? currentSession.title
+        : (messages.length > 0 ? ChatHistoryManager.generateSessionTitle(messages) : currentSession.title);
+      
+      const updatedSession: ChatSession = {
+        ...currentSession,
+        messages,
+        conversationId: conversationId || undefined,
+        title,
+        updatedAt: Date.now(),
+      };
+      
+      // 認証されている場合のみSupabase同期、されていない場合はローカルのみ
+      if (session?.user?.id) {
+        try {
+          setSyncStatus('syncing');
+          await ChatHistoryManager.syncChatSession(updatedSession, session.user.id);
+          setSyncStatus('connected');
+        } catch (error) {
+          console.error('チャット保存エラー:', error);
+          setSyncStatus('disconnected');
+          // エラーが発生してもローカル保存は継続
+          ChatHistoryManager.saveChatSession(updatedSession);
+        }
+      } else {
+        // ゲストユーザーの場合はローカルストレージのみ
+        ChatHistoryManager.saveChatSession(updatedSession);
+        console.log('👤 [GUEST] Chat saved to localStorage only');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  }, [mounted, currentSession, messages, conversationId, session?.user?.id, isSaving]);
 
   useEffect(() => {
     if (messages.length > 0 && mounted && currentSession) {

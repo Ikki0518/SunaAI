@@ -582,7 +582,21 @@ export class ChatHistoryManager {
   // 新しいセッションを作成
   static createNewSession(): ChatSession {
     const now = Date.now();
-    return {
+    const existingSessions = this.getSortedSessions();
+    
+    // 30秒以内に作成された空の「新しいチャット」セッションがある場合、それを再利用
+    const recentEmptySession = existingSessions.find(session =>
+      session.title === '新しいチャット' &&
+      (now - session.createdAt) < 30000 && // 30秒以内
+      (!session.messages || session.messages.length === 0) // メッセージが空
+    );
+    
+    if (recentEmptySession) {
+      console.log('🔄 [SESSION] Reusing recent empty session:', recentEmptySession.id);
+      return recentEmptySession;
+    }
+    
+    const newSession = {
       id: this.generateUUID(), // UUID形式のIDを生成
       title: '新しいチャット',
       messages: [],
@@ -590,6 +604,9 @@ export class ChatHistoryManager {
       updatedAt: now,
       isPinned: false
     };
+    
+    console.log('➕ [SESSION] Creating new session:', newSession.id);
+    return newSession;
   }
 
   // メッセージからセッションタイトルを生成

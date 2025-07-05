@@ -160,11 +160,43 @@ export default function ClientChatPage() {
     setConversationId(null);
   };
 
-  const handleSessionSelect = (session: ChatSession) => {
+  const handleSessionSelect = async (chatSession: ChatSession) => {
+    // 現在のセッションを保存
     saveCurrentSession();
-    setCurrentSession(session);
-    setMessages(session.messages || []);
-    setConversationId(session.conversationId || null);
+    
+    console.log('🔄 [SESSION SELECT] Loading session:', chatSession.id, 'title:', chatSession.title);
+    
+    // セッションを設定
+    setCurrentSession(chatSession);
+    setConversationId(chatSession.conversationId || null);
+    
+    // メッセージを読み込み（認証済みの場合はSupabaseから、そうでなければローカルから）
+    try {
+      let messages = chatSession.messages || [];
+      
+      // 認証済みユーザーの場合、Supabaseから最新メッセージを読み込み
+      if (session?.user?.id && chatSession.id) {
+        console.log('🔄 [SESSION SELECT] Loading messages from Supabase for session:', chatSession.id);
+        const supabaseMessages = await ChatHistoryManager.loadMessagesFromSupabase(chatSession.id);
+        messages = supabaseMessages;
+      }
+      
+      // メッセージの重複を除去（timestamp + role + contentベース）
+      const uniqueMessages = messages.filter((message, index, array) =>
+        array.findIndex(m =>
+          m.timestamp === message.timestamp &&
+          m.role === message.role &&
+          m.content === message.content
+        ) === index
+      );
+      
+      console.log('📨 [SESSION SELECT] Loaded messages:', messages.length, '→ unique:', uniqueMessages.length);
+      setMessages(uniqueMessages);
+    } catch (error) {
+      console.error('❌ [SESSION SELECT] Failed to load messages:', error);
+      // エラー時はセッションに含まれているメッセージを使用
+      setMessages(chatSession.messages || []);
+    }
   };
 
   const handleSend = async () => {

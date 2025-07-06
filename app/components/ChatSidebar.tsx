@@ -89,6 +89,22 @@ export default function ChatSidebar({
     }
   }, [session?.user?.id, loading, lastLoadTime, errorCount]);
 
+  // チャット履歴更新イベントをリッスン
+  useEffect(() => {
+    if (!mounted) return;
+
+    const handleChatHistoryUpdate = () => {
+      console.log('🔄 [SIDEBAR] Chat history update event received');
+      loadChatHistory();
+    };
+
+    window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
+    
+    return () => {
+      window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
+    };
+  }, [mounted, loadChatHistory]);
+
   // 🔄 初回読み込みのみ（無限ループ防止）
   useEffect(() => {
     if (mounted && !loading) {

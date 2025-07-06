@@ -152,12 +152,30 @@ export default function ClientChatPage() {
     }
   }, [messages.length, conversationId, mounted, currentSession, saveCurrentSession]); // messagesではなくmessages.lengthを監視
 
-  const handleNewChat = () => {
-    saveCurrentSession();
+  const handleNewChat = async () => {
+    // 現在のセッションにメッセージがある場合は確実に保存する
+    if (currentSession && messages.length > 0) {
+      console.log('🔄 [NEW CHAT] Saving current session before creating new one...');
+      try {
+        await saveCurrentSession();
+        console.log('✅ [NEW CHAT] Current session saved successfully');
+        
+        // サイドバーを更新して新しく保存されたセッションを表示
+        setTimeout(() => {
+          console.log('🔄 [NEW CHAT] Refreshing sidebar...');
+          window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+        }, 100);
+      } catch (error) {
+        console.error('❌ [NEW CHAT] Failed to save current session:', error);
+      }
+    }
+    
+    console.log('➕ [NEW CHAT] Creating new session...');
     const newSession = ChatHistoryManager.createNewSession();
     setCurrentSession(newSession);
     setMessages([]);
     setConversationId(null);
+    console.log('✅ [NEW CHAT] New session created:', newSession.id);
   };
 
   const handleSessionSelect = async (chatSession: ChatSession) => {

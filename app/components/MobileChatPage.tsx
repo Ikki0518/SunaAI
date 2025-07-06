@@ -18,6 +18,7 @@ export default function MobileChatPage() {
   const [showChatList, setShowChatList] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [syncStatus, setSyncStatus] = useState<'connected' | 'disconnected' | 'syncing'>('disconnected');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -27,13 +28,22 @@ export default function MobileChatPage() {
     try {
       setSyncStatus('syncing');
       
+      // 重複セッションをクリーンアップ
+      ChatHistoryManager.cleanupDuplicateSessions();
+      
       // 認証されている場合のみSupabaseから読み込み、そうでない場合はローカルのみ
       if (session?.user?.id) {
         console.log('🐘 [MOBILE] Loading from Supabase + Local for user:', session.user.id);
         const sessions = await ChatHistoryManager.loadAllSessions(session.user.id);
-        setChatSessions(sessions);
+        
+        // モバイルレベルで重複除去を実行
+        console.log('🧹 [MOBILE] Original sessions count:', sessions.length);
+        const deduplicatedSessions = ChatHistoryManager.deduplicateSessionsByTitle(sessions);
+        console.log('🧹 [MOBILE] After deduplication:', deduplicatedSessions.length);
+        
+        setChatSessions(deduplicatedSessions);
         setSyncStatus('connected');
-        console.log('🐘 [MOBILE] Chat history loaded:', sessions.length, 'sessions');
+        console.log('🐘 [MOBILE] Chat history loaded:', deduplicatedSessions.length, 'sessions');
       } else {
         console.log('👤 [MOBILE] Guest user - loading from local storage only');
         const localSessions = ChatHistoryManager.getSortedSessions();
@@ -57,6 +67,16 @@ export default function MobileChatPage() {
     }
   }, [mounted, status]);
 
+  // 初期セッション作成（PC版と同じロジック）
+  useEffect(() => {
+    if (mounted && !currentSession && status !== "loading") {
+      const newSession = ChatHistoryManager.createNewSession();
+      setCurrentSession(newSession);
+      setMessages([]);
+      setConversationId(null);
+    }
+  }, [mounted, currentSession, status]);
+
   // 🔄 ローカル同期リスナー（認証されている場合のみ）
   useEffect(() => {
     if (!mounted || !session?.user?.id) return;
@@ -69,11 +89,89 @@ export default function MobileChatPage() {
     return cleanup;
   }, [mounted, session?.user?.id]);
 
-  const handleNewChat = () => {
+  // 自動保存（PC版と同じロジック）
+  useEffect(() => {
+    if (messages.length > 0 && mounted && currentSession) {
+      // セッション保存の頻度を減らし、最後のメッセージから5秒後に保存
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ [MOBILE AUTO SAVE] Saving session after delay...');
+        saveCurrentSession();
+      }, 5000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [messages.length, conversationId, mounted, currentSession]);
+
+  const handleNewChat = async () => {
+    // 現在のセッションにメッセージがある場合は確実に保存する
+    if (currentSession && messages.length > 0) {
+      console.log('🔄 [MOBILE NEW CHAT] Saving current session before creating new one...');
+      try {
+        await saveCurrentSession();
+        console.log('✅ [MOBILE NEW CHAT] Current session saved successfully');
+      } catch (error) {
+        console.error('❌ [MOBILE NEW CHAT] Failed to save current session:', error);
+      }
+    }
+    
+    console.log('➕ [MOBILE NEW CHAT] Creating new session...');
+    const newSession = ChatHistoryManager.createNewSession();
+    setCurrentSession(newSession);
     setMessages([]);
     setConversationId(null);
-    setCurrentSession(null);
     setShowChatList(false);
+    console.log('✅ [MOBILE NEW CHAT] New session created:', newSession.id);
+  };
+
+  const saveCurrentSession = async () => {
+    if (!currentSession || !mounted || messages.length === 0 || isSaving) {
+      if (isSaving) {
+        console.log('⏸️ [MOBILE SAVE] Skipping save - already saving');
+      }
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    try {
+      console.log('💾 [MOBILE SAVE] Saving current session:', {
+        sessionId: currentSession.id,
+        messageCount: messages.length,
+        isManuallyRenamed: currentSession.isManuallyRenamed
+      });
+      
+      // 手動でリネームされていない場合のみ自動生成
+      const title = currentSession.isManuallyRenamed
+        ? currentSession.title
+        : (messages.length > 0 ? ChatHistoryManager.generateSessionTitle(messages) : currentSession.title);
+      
+      const updatedSession: ChatSession = {
+        ...currentSession,
+        messages,
+        conversationId: conversationId || undefined,
+        title,
+        updatedAt: Date.now(),
+      };
+      
+      // 認証されている場合のみSupabase同期、されていない場合はローカルのみ
+      if (session?.user?.id) {
+        try {
+          setSyncStatus('syncing');
+          await ChatHistoryManager.syncChatSession(updatedSession, session.user.id);
+          setSyncStatus('connected');
+        } catch (error) {
+          console.error('❌ [MOBILE SAVE] Chat save error:', error);
+          setSyncStatus('disconnected');
+          // エラーが発生してもローカル保存は継続
+          ChatHistoryManager.saveChatSession(updatedSession);
+        }
+      } else {
+        // ゲストユーザーの場合はローカルストレージのみ
+        ChatHistoryManager.saveChatSession(updatedSession);
+        console.log('👤 [MOBILE GUEST] Chat saved to localStorage only');
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSessionSelect = (session: ChatSession) => {
@@ -112,36 +210,10 @@ export default function MobileChatPage() {
         if (data.conversationId) {
           setConversationId(data.conversationId);
           
-          // セッション保存（認証されている場合のみSupabase同期）
-          const sessionToSave: ChatSession = {
-            id: currentSession?.id || `session_${Date.now()}`,
-            title: currentSession?.title || `${userMessage.slice(0, 30)}...`,
-            messages: newMessages,
-            conversationId: data.conversationId,
-            createdAt: currentSession?.createdAt || Date.now(),
-            updatedAt: Date.now()
-          };
-          
-          if (session?.user?.id) {
-            // 認証されている場合: Supabase同期
-            try {
-              setSyncStatus('syncing');
-              await ChatHistoryManager.syncChatSession(sessionToSave, session.user.id);
-              setSyncStatus('connected');
-              setCurrentSession(sessionToSave);
-              // loadChatHistory()を削除（無限ループ防止）
-            } catch (error) {
-              console.error('❌ [MOBILE] Failed to save chat session:', error);
-              setSyncStatus('disconnected');
-              // エラーが発生してもローカル保存は継続
-              ChatHistoryManager.saveChatSession(sessionToSave);
-              setCurrentSession(sessionToSave);
-            }
-          } else {
-            // ゲストユーザーの場合: ローカルストレージのみ
-            ChatHistoryManager.saveChatSession(sessionToSave);
-            setCurrentSession(sessionToSave);
-            console.log('👤 [MOBILE GUEST] Chat saved to localStorage only');
+          // 現在のセッションがない場合は新しく作成
+          if (!currentSession) {
+            const newSession = ChatHistoryManager.createNewSession();
+            setCurrentSession(newSession);
           }
         }
       } else {

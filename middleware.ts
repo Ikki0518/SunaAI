@@ -1,16 +1,10 @@
 import { withAuth } from "next-auth/middleware"
-import { NextResponse } from "next/server"
 
 export default withAuth(
+  // middleware関数 - 認証が必要なページでのみ実行される
   function middleware(req) {
-    // 認証が必要なルートにアクセスしているが、認証されていない場合
-    if (!req.nextauth.token) {
-      console.log('🚫 [MIDDLEWARE] Unauthenticated access detected, redirecting to signin');
-      return NextResponse.redirect(new URL('/auth/signin', req.url))
-    }
-    
     // 認証されている場合はそのまま続行
-    return NextResponse.next()
+    return;
   },
   {
     callbacks: {
@@ -34,6 +28,7 @@ export default withAuth(
         }
         
         // その他のパスは認証が必要
+        // falseを返すと自動的に /auth/signin にリダイレクト
         return !!token;
       },
     },
@@ -45,11 +40,13 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - api/auth (NextAuth.js routes)
+     * - auth/signin (signin page)
+     * - auth/signup (signup page)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - logo-suna.png (logo file)
      */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|logo-suna.png).*)',
+    '/((?!api/auth|auth/signin|auth/signup|_next/static|_next/image|favicon.ico|logo-suna.png).*)',
   ],
 }

@@ -133,16 +133,16 @@ export default function MobileChatPage() {
     setIsSaving(true);
     
     try {
-      console.log('💾 [MOBILE SAVE] Saving current session:', {
-        sessionId: currentSession.id,
-        messageCount: messages.length,
-        isManuallyRenamed: currentSession.isManuallyRenamed
-      });
+      console.log('💾 [MOBILE SAVE] Saving current session:', currentSession);
       
       // 手動でリネームされていない場合のみ自動生成
       const title = currentSession.isManuallyRenamed
         ? currentSession.title
         : (messages.length > 0 ? ChatHistoryManager.generateSessionTitle(messages) : currentSession.title);
+      
+      console.log('🏷️ [TITLE] Generating title from messages:', messages.length);
+      console.log('🏷️ [TITLE] User messages found:', messages.filter(m => m.role === 'user').length);
+      console.log('🏷️ [TITLE] Generated title:', title);
       
       const updatedSession: ChatSession = {
         ...currentSession,
@@ -152,6 +152,15 @@ export default function MobileChatPage() {
         updatedAt: Date.now(),
       };
       
+      console.log('💾 [SAVE DEBUG] Starting session save:', updatedSession);
+      
+      // 既存セッションの確認と重複防止
+      const existingSessions = ChatHistoryManager.getSortedSessions();
+      const existingIndex = existingSessions.findIndex(s => s.id === currentSession.id);
+      
+      console.log('💾 [SAVE DEBUG] Current sessions count:', existingSessions.length);
+      console.log('💾 [SAVE DEBUG] Existing session index:', existingIndex);
+      
       // 認証されている場合のみSupabase同期、されていない場合はローカルのみ
       if (session?.user?.id) {
         try {
@@ -159,16 +168,72 @@ export default function MobileChatPage() {
           await ChatHistoryManager.syncChatSession(updatedSession, session.user.id);
           setSyncStatus('connected');
         } catch (error) {
-          console.error('❌ [MOBILE SAVE] Chat save error:', error);
+          console.error('❌ [MOBILE SAVE] Supabase save error:', error);
           setSyncStatus('disconnected');
-          // エラーが発生してもローカル保存は継続
-          ChatHistoryManager.saveChatSession(updatedSession);
+          // エラーが発生してもローカル保存は継続（重複防止付き）
+          console.log('💾 [SAVE DEBUG] Falling back to local save with duplicate prevention');
+          
+          if (existingIndex !== -1) {
+            console.log('🔄 [SAVE DEBUG] Updating existing session');
+            existingSessions[existingIndex] = updatedSession;
+          } else {
+            // 新規セッション追加前に重複チェック
+            const duplicateByTitle = existingSessions.findIndex(s =>
+              s.title === title &&
+              s.title !== '新しいチャット' &&
+              s.id !== currentSession.id
+            );
+            
+            if (duplicateByTitle !== -1) {
+              console.log('⚠️ [SAVE DEBUG] Duplicate title detected, merging sessions:', title);
+              existingSessions[duplicateByTitle] = updatedSession;
+            } else {
+              console.log('➕ [SAVE DEBUG] Adding new session');
+              existingSessions.push(updatedSession);
+            }
+          }
+          
+          // 重複除去を実行
+          const deduplicatedSessions = ChatHistoryManager.deduplicateSessionsByTitle(existingSessions);
+          localStorage.setItem('chatHistory', JSON.stringify(deduplicatedSessions));
+          console.log('✅ [SAVE DEBUG] Session saved successfully, total sessions:', deduplicatedSessions.length);
         }
       } else {
-        // ゲストユーザーの場合はローカルストレージのみ
-        ChatHistoryManager.saveChatSession(updatedSession);
+        // ゲストユーザーの場合はローカルストレージのみ（重複防止付き）
+        console.log('👤 [MOBILE GUEST] Saving to localStorage with duplicate prevention');
+        
+        if (existingIndex !== -1) {
+          console.log('🔄 [SAVE DEBUG] Updating existing session');
+          existingSessions[existingIndex] = updatedSession;
+        } else {
+          // 新規セッション追加前に重複チェック
+          const duplicateByTitle = existingSessions.findIndex(s =>
+            s.title === title &&
+            s.title !== '新しいチャット' &&
+            s.id !== currentSession.id
+          );
+          
+          if (duplicateByTitle !== -1) {
+            console.log('⚠️ [SAVE DEBUG] Duplicate title detected, merging sessions:', title);
+            existingSessions[duplicateByTitle] = updatedSession;
+          } else {
+            console.log('➕ [SAVE DEBUG] Adding new session');
+            existingSessions.push(updatedSession);
+          }
+        }
+        
+        // 重複除去を実行
+        const deduplicatedSessions = ChatHistoryManager.deduplicateSessionsByTitle(existingSessions);
+        localStorage.setItem('chatHistory', JSON.stringify(deduplicatedSessions));
+        console.log('✅ [SAVE DEBUG] Session saved successfully, total sessions:', deduplicatedSessions.length);
         console.log('👤 [MOBILE GUEST] Chat saved to localStorage only');
       }
+      
+      // UIの更新イベントをディスパッチ
+      window.dispatchEvent(new CustomEvent('chatHistoryUpdated', {
+        detail: { action: 'save', sessionId: currentSession.id, timestamp: Date.now() }
+      }));
+      
     } finally {
       setIsSaving(false);
     }

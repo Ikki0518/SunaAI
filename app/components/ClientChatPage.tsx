@@ -143,11 +143,17 @@ export default function ClientChatPage() {
 
   useEffect(() => {
     if (messages.length > 0 && mounted && currentSession) {
-      // セッション保存の頻度を減らし、最後のメッセージから5秒後に保存
+      // 即座にセッションを保存し、サイドバーを更新
       const timeoutId = setTimeout(() => {
-        console.log('⏰ [AUTO SAVE] Saving session after delay...');
-        saveCurrentSession();
-      }, 5000);
+        console.log('⏰ [AUTO SAVE] Saving session immediately...');
+        saveCurrentSession().then(() => {
+          // 保存完了後、サイドバーを更新
+          setTimeout(() => {
+            console.log('🔄 [AUTO SAVE] Refreshing sidebar after save...');
+            window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+          }, 100);
+        });
+      }, 500); // 500msに短縮して即座に反映
       return () => clearTimeout(timeoutId);
     }
   }, [messages.length, conversationId, mounted, currentSession, saveCurrentSession]); // messagesではなくmessages.lengthを監視
@@ -259,7 +265,11 @@ export default function ClientChatPage() {
           setConversationId(data.conversationId);
         }
         
-        // チャット完了後の自動同期確認は削除（無限ループ防止）
+        // メッセージ送信完了後、即座にサイドバーを更新
+        setTimeout(() => {
+          console.log('🔄 [CHAT] Refreshing sidebar after message...');
+          window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+        }, 100);
       } else {
         const errorMsg: ChatMessage = { role: "bot", content: "エラーが発生しました", timestamp: Date.now() };
         setMessages(prev => [...prev, errorMsg]);
@@ -416,6 +426,12 @@ export default function ClientChatPage() {
                           if (data.conversationId) {
                             setConversationId(data.conversationId);
                           }
+                          
+                          // メッセージ送信完了後、即座にサイドバーを更新
+                          setTimeout(() => {
+                            console.log('🔄 [HELLO BUTTON] Refreshing sidebar after hello message...');
+                            window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+                          }, 100);
                         } else {
                           const errorMsg: ChatMessage = { role: "bot", content: "エラーが発生しました", timestamp: Date.now() };
                           setMessages(prev => [...prev, errorMsg]);

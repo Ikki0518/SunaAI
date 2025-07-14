@@ -273,7 +273,7 @@ export default function ChatSidebar({
             <h2 className={`text-lg font-semibold text-gray-900 transition-all duration-500 ${
               isOpen ? 'opacity-100 translate-y-0 delay-200' : 'opacity-0 translate-y-4'
             }`}>
-              過去のチャット
+              チャット
             </h2>
           </div>
 

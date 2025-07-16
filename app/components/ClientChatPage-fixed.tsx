@@ -3,8 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { ChatSession, ChatMessage } from '@/app/types/chat';
 import { FixedChatHistoryManager } from '@/app/utils/chatHistory-fixed';
-
-// ... 他のインポートは既存のものを使用
+import { ChatHistoryManager } from '@/app/utils/chatHistory';
 
 export default function FixedClientChatPage() {
   const { data: session, status } = useSession();

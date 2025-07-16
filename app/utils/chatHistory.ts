@@ -197,7 +197,8 @@ export class ChatHistoryManager {
       const messages: ChatMessage[] = supabaseMessages.map((message: any) => ({
         role: message.role,
         content: message.content,
-        timestamp: message.timestamp
+        timestamp: message.timestamp,
+        isFavorite: message.is_favorite || false
       }));
       
       return messages;

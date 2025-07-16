@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       role: message.role,
       content: message.content,
       timestamp: message.timestamp,
+      is_favorite: message.isFavorite || false,
       created_at: new Date().toISOString()
     });
     

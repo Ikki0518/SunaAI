@@ -282,6 +282,48 @@ export default function ClientChatPage() {
     }
   };
 
+  // お気に入りの切り替え処理
+  const handleToggleFavorite = (index: number) => {
+    setMessages(prev => {
+      const newMessages = [...prev];
+      // 実際のメッセージのインデックスを取得（ソート前の配列での位置）
+      const sortedMessages = [...prev].sort((a, b) => {
+        if (a.isFavorite && !b.isFavorite) return -1;
+        if (!a.isFavorite && b.isFavorite) return 1;
+        return b.timestamp - a.timestamp;
+      });
+      const targetMessage = sortedMessages[index];
+      const originalIndex = prev.findIndex(msg =>
+        msg.timestamp === targetMessage.timestamp &&
+        msg.role === targetMessage.role &&
+        msg.content === targetMessage.content
+      );
+      
+      if (originalIndex !== -1) {
+        newMessages[originalIndex] = {
+          ...newMessages[originalIndex],
+          isFavorite: !newMessages[originalIndex].isFavorite
+        };
+      }
+      
+      // セッションを更新
+      if (currentSession) {
+        const updatedSession = {
+          ...currentSession,
+          messages: newMessages,
+          updatedAt: Date.now()
+        };
+        setCurrentSession(updatedSession);
+        // 保存処理をトリガー
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+        }, 100);
+      }
+      
+      return newMessages;
+    });
+  };
+
   const [isComposing, setIsComposing] = useState(false);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -459,18 +501,59 @@ export default function ClientChatPage() {
               </div>
             ) : (
               <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
-                {messages.map((msg, idx) => (
-                  <div key={`${msg.role}-${idx}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-2xl ${msg.role === "user" ? "order-2" : "order-1"}`}>
+                {/* メッセージをソート: お気に入りが上、その後タイムスタンプ順 */}
+                {[...messages]
+                  .sort((a, b) => {
+                    // まずお気に入りでソート
+                    if (a.isFavorite && !b.isFavorite) return -1;
+                    if (!a.isFavorite && b.isFavorite) return 1;
+                    // 同じお気に入り状態なら、タイムスタンプでソート（新しい順）
+                    return b.timestamp - a.timestamp;
+                  })
+                  .map((msg, idx) => (
+                  <div key={`${msg.role}-${idx}-${msg.timestamp}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-2xl ${msg.role === "user" ? "order-2" : "order-1"} relative group`}>
                       <div
                         className={`px-6 py-4 rounded-2xl ${
                           msg.role === "user"
                             ? "bg-blue-500 text-white"
                             : "bg-gray-100 text-gray-900"
-                        }`}
+                        } ${msg.isFavorite ? 'ring-2 ring-yellow-400' : ''}`}
                       >
-                        <div className={`text-sm font-medium mb-2 ${msg.role === "user" ? "text-blue-100" : "text-gray-600"}`}>
-                          {msg.role === "user" ? "あなた" : "Suna"}
+                        <div className={`flex items-center justify-between mb-2`}>
+                          <div className={`text-sm font-medium ${msg.role === "user" ? "text-blue-100" : "text-gray-600"}`}>
+                            {msg.role === "user" ? "あなた" : "Suna"}
+                          </div>
+                          {/* お気に入りボタン */}
+                          <button
+                            onClick={() => handleToggleFavorite(idx)}
+                            className={`ml-2 p-1 rounded-full transition-all duration-200 ${
+                              msg.role === "user"
+                                ? "hover:bg-blue-400"
+                                : "hover:bg-gray-200"
+                            } ${msg.isFavorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                            title={msg.isFavorite ? "お気に入りを解除" : "お気に入りに追加"}
+                          >
+                            <svg
+                              className={`w-5 h-5 ${
+                                msg.isFavorite
+                                  ? "text-yellow-400 fill-current"
+                                  : msg.role === "user"
+                                    ? "text-blue-200"
+                                    : "text-gray-400"
+                              }`}
+                              fill={msg.isFavorite ? "currentColor" : "none"}
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+                              />
+                            </svg>
+                          </button>
                         </div>
                         <div className="whitespace-pre-wrap leading-relaxed">
                           {msg.content}

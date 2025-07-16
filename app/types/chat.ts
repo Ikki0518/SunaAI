@@ -2,6 +2,7 @@ export interface ChatMessage {
   role: 'user' | 'bot';
   content: string;
   timestamp: number;
+  isFavorite?: boolean;
 }
 
 export interface ChatSession {

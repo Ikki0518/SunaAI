@@ -427,7 +427,7 @@ export default function ClientChatPage() {
 
         {/* メインコンテンツ */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex-1 overflow-y-auto flex flex-col-reverse" style={{ WebkitOverflowScrolling: 'touch' }}>
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center px-6">
                 <div className="text-center mb-8">
@@ -500,17 +500,10 @@ export default function ClientChatPage() {
                 </div>
               </div>
             ) : (
-              <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
-                {/* メッセージをソート: お気に入りが上、その後タイムスタンプ順 */}
-                {[...messages]
-                  .sort((a, b) => {
-                    // まずお気に入りでソート
-                    if (a.isFavorite && !b.isFavorite) return -1;
-                    if (!a.isFavorite && b.isFavorite) return 1;
-                    // 同じお気に入り状態なら、タイムスタンプでソート（新しい順）
-                    return b.timestamp - a.timestamp;
-                  })
-                  .map((msg, idx) => (
+              <div className="flex flex-col">
+                <div className="max-w-3xl mx-auto px-6 py-8 space-y-6 w-full">
+                  {/* メッセージを配列の順序通りに表示（ソートしない） */}
+                  {messages.map((msg, idx) => (
                   <div key={`${msg.role}-${idx}-${msg.timestamp}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-2xl ${msg.role === "user" ? "order-2" : "order-1"} relative group`}>
                       <div
@@ -561,10 +554,10 @@ export default function ClientChatPage() {
                       </div>
                     </div>
                   </div>
-                ))}
-                {loading && (
-                  <div className="flex justify-start">
-                    <div className="max-w-2xl">
+                  ))}
+                  {loading && (
+                    <div className="flex justify-start">
+                      <div className="max-w-2xl">
                       <div className="px-6 py-4 rounded-2xl bg-gray-100">
                         <div className="text-sm font-medium mb-2 text-gray-600">Suna</div>
                         <div className="flex items-center space-x-3">
@@ -604,6 +597,7 @@ export default function ClientChatPage() {
               </div>
             )}
           </div>
+        </div>
 
           {/* フッター入力エリア - デスクトップ用 */}
           <div className="px-6 py-4 border-t border-gray-100 bg-white">

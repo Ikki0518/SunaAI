@@ -1,7 +1,30 @@
 import { useEffect, useRef } from 'react';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from '@/app/lib/supabase';
 import { ChatSession } from '@/app/types/chat';
+
+// Supabaseのテーブル型定義
+interface ChatSessionRecord {
+  id: string;
+  user_id: string;
+  title: string;
+  conversation_id?: string;
+  is_pinned: boolean;
+  is_manually_renamed?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ChatMessageRecord {
+  id: string;
+  session_id: string;
+  user_id: string;
+  role: 'user' | 'bot';
+  content: string;
+  timestamp: number;
+  is_favorite?: boolean;
+  created_at: string;
+}
 
 interface UseRealtimeSyncOptions {
   userId: string;
@@ -26,7 +49,7 @@ export function useRealtimeSync({ userId, onSessionUpdate, onSessionDelete }: Us
           table: 'chat_sessions',
           filter: `user_id=eq.${userId}`
         },
-        async (payload) => {
+        async (payload: RealtimePostgresChangesPayload<ChatSessionRecord>) => {
           console.log('🔄 [REALTIME] Change received:', payload);
           
           switch (payload.eventType) {
@@ -34,7 +57,7 @@ export function useRealtimeSync({ userId, onSessionUpdate, onSessionDelete }: Us
             case 'UPDATE':
               // セッションが追加または更新された
               if (payload.new) {
-                const session = payload.new as any;
+                const session = payload.new;
                 
                 // メッセージを別途取得
                 try {
@@ -83,12 +106,12 @@ export function useRealtimeSync({ userId, onSessionUpdate, onSessionDelete }: Us
           table: 'chat_messages',
           filter: `user_id=eq.${userId}`
         },
-        async (payload) => {
+        async (payload: RealtimePostgresChangesPayload<ChatMessageRecord>) => {
           console.log('🔄 [REALTIME] Message change received:', payload);
           
           // メッセージが変更された場合、関連するセッションを更新
-          if (payload.new && (payload.new as any).session_id) {
-            const sessionId = (payload.new as any).session_id;
+          if (payload.new && 'session_id' in payload.new) {
+            const sessionId = payload.new.session_id;
             
             try {
               // セッション全体を再取得
@@ -122,7 +145,7 @@ export function useRealtimeSync({ userId, onSessionUpdate, onSessionDelete }: Us
       );
     
     // チャンネルを購読
-    channel.subscribe((status) => {
+    channel.subscribe((status: 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR') => {
       console.log('📡 [REALTIME] Subscription status:', status);
     });
     

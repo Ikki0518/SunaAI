@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import DebugChat from './components/DebugChat';
 
 // SSRを無効にしてクライアントサイドのみでレンダリング
 const ClientChatPage = dynamic(() => import('./components/ClientChatPage'), {
@@ -16,5 +17,10 @@ const ClientChatPage = dynamic(() => import('./components/ClientChatPage'), {
 });
 
 export default function ChatPage() {
-  return <ClientChatPage />;
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+      <ClientChatPage />
+      <DebugChat />
+    </div>
+  );
 }

@@ -25,7 +25,7 @@ export default function PerfectChatDemoPage() {
           maxWidth: '600px',
           margin: '0 auto',
         }}>
-          flex-direction: column-reverseを使用した完璧なチャットUI実装
+          標準的なチャット表示順（新しいメッセージが下）の実装
         </p>
       </div>
       
@@ -58,11 +58,11 @@ export default function PerfectChatDemoPage() {
           </li>
           <li style={{ marginBottom: '12px', display: 'flex', alignItems: 'flex-start' }}>
             <span style={{ color: '#007bff', marginRight: '8px' }}>✓</span>
-            <span>flex-direction: column-reverseを正しく使用</span>
+            <span>flex-direction: columnを使用（標準的な表示順）</span>
           </li>
           <li style={{ marginBottom: '12px', display: 'flex', alignItems: 'flex-start' }}>
             <span style={{ color: '#007bff', marginRight: '8px' }}>✓</span>
-            <span>自動スクロール機能（scrollTop = 0）</span>
+            <span>自動スクロール機能（scrollTop = scrollHeight）</span>
           </li>
           <li style={{ marginBottom: '12px', display: 'flex', alignItems: 'flex-start' }}>
             <span style={{ color: '#007bff', marginRight: '8px' }}>✓</span>

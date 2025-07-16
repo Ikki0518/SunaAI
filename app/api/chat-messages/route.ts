@@ -64,16 +64,22 @@ export async function POST(request: NextRequest) {
       });
     };
 
-    await saveSupabaseChatMessage({
-      id: generateUUID(), // UUID形式のIDを生成
+    // Supabaseのスキーマに合わせたデータ構造
+    const messageData = {
+      id: generateUUID(),
       session_id,
       user_id,
-      role: message.role,
+      role: message.role as 'user' | 'bot',
       content: message.content,
-      timestamp: message.timestamp,
-      is_favorite: message.isFavorite || false,
-      created_at: new Date().toISOString()
-    });
+      timestamp: message.timestamp || Date.now(),
+      // created_atは削除（Supabaseが自動生成）
+      // is_favoriteは削除（テーブルに存在しない場合）
+    };
+
+    // デバッグ用ログ
+    console.log('🔧 [CHAT-MESSAGES API] Saving message:', messageData);
+
+    await saveSupabaseChatMessage(messageData);
     
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -81,12 +87,24 @@ export async function POST(request: NextRequest) {
     console.error('🔧 [CHAT-MESSAGES API] Error details:', {
       name: error instanceof Error ? error.name : 'Unknown',
       message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
+      // Supabaseのエラー詳細を追加
+      supabaseError: error instanceof Error && 'code' in error ? (error as any).code : undefined,
+      supabaseHint: error instanceof Error && 'hint' in error ? (error as any).hint : undefined,
+      supabaseDetails: error instanceof Error && 'details' in error ? (error as any).details : undefined
     });
     
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Failed to save message',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      // 開発環境でのみ詳細なエラー情報を返す
+      ...(process.env.NODE_ENV === 'development' && {
+        debug: {
+          message: error instanceof Error ? error.message : String(error),
+          code: error instanceof Error && 'code' in error ? (error as any).code : undefined,
+          hint: error instanceof Error && 'hint' in error ? (error as any).hint : undefined
+        }
+      })
     }, { status: 500 });
   }
-} 
+}

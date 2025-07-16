@@ -12,7 +12,7 @@ interface Message {
 
 /**
  * 完璧に動作するチャットUIコンポーネント
- * - flex-direction: column-reverseを使用して新しいメッセージを下部に表示
+ * - 新しいメッセージを下部に表示（通常のチャット表示順）
  * - 自動スクロール機能付き
  * - データは配列の末尾に追加（reverseは使用しない）
  */
@@ -39,8 +39,8 @@ const PerfectChatUI: React.FC = () => {
   // 自動スクロール関数
   const scrollToBottom = () => {
     if (scrollContainerRef.current) {
-      // column-reverseの場合、scrollTop = 0が最下部
-      scrollContainerRef.current.scrollTop = 0;
+      // 通常のflexboxの場合、scrollHeightが最下部
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   };
 
@@ -70,7 +70,7 @@ const PerfectChatUI: React.FC = () => {
       {/* チャットヘッダー */}
       <div style={styles.header}>
         <h2 style={styles.headerTitle}>Perfect Chat UI</h2>
-        <p style={styles.headerSubtitle}>flex-direction: column-reverse を使用</p>
+        <p style={styles.headerSubtitle}>標準的なチャット表示順（新しいメッセージが下）</p>
       </div>
 
       {/* メッセージ表示エリア */}
@@ -163,7 +163,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     overflowY: 'auto',
     padding: '16px',
     display: 'flex',
-    flexDirection: 'column-reverse', // 重要: column-reverseを使用
+    flexDirection: 'column', // 通常の方向（上から下へ）
   },
   messagesList: {
     display: 'flex',

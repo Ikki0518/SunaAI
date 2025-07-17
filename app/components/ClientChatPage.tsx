@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import UserMenu from './UserMenu';
@@ -14,6 +14,7 @@ export default function ClientChatPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { isMobile, mounted: deviceMounted } = useDeviceDetection();
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,13 +26,23 @@ export default function ClientChatPage() {
   const [syncStatus, setSyncStatus] = useState<'connected' | 'disconnected' | 'syncing'>('disconnected');
   const [isSaving, setIsSaving] = useState(false);
 
+  // 自動スクロール関数
+  const scrollToBottom = useCallback(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, []);
+
+  // メッセージが更新されたら自動スクロール
+  useEffect(() => {
+    setTimeout(scrollToBottom, 100);
+  }, [messages, scrollToBottom]);
+
   useEffect(() => {
     setMounted(true);
-    // 認証されている場合のみ同期状況をチェック（ゲストユーザーの場合はスキップ）
     if (status === "authenticated" && session?.user?.id) {
       checkSyncStatus();
     } else if (status === "unauthenticated") {
-      // ゲストユーザーの場合は即座にローカルモードに設定
       setSyncStatus('disconnected');
     }
   }, [status]);
@@ -46,25 +57,13 @@ export default function ClientChatPage() {
   }, [mounted, currentSession, status]);
 
   const checkSyncStatus = async () => {
-    console.log('🔄 [SYNC STATUS] Starting sync status check...');
-    
-    // 認証されていない場合は即座にローカルモードに設定
     if (!session?.user?.id) {
-      console.log('👤 [SYNC STATUS] User not authenticated - local mode only');
       setSyncStatus('disconnected');
-      return; // 重要: ここでAPIコールを行わない
+      return;
     }
-    
-    console.log('🔄 [SYNC STATUS] User authenticated:', {
-      userId: session.user.id?.slice(0, 8) + '...',
-      email: session.user.email
-    });
     
     try {
       setSyncStatus('syncing');
-      console.log('🔄 [SYNC STATUS] Testing Supabase connection...');
-      
-      // 軽量な接続テスト（データ読み込みはしない）
       const response = await fetch('/api/chat-sessions', {
         method: 'GET',
         headers: {
@@ -73,40 +72,24 @@ export default function ClientChatPage() {
       });
       
       if (response.ok) {
-        console.log('✅ [SYNC STATUS] Supabase connection successful');
         setSyncStatus('connected');
       } else {
-        console.warn('⚠️ [SYNC STATUS] Supabase connection test failed:', response.status);
         setSyncStatus('disconnected');
       }
     } catch (error) {
       console.error('❌ [SYNC STATUS] Supabase connection failed:', error);
-      console.error('❌ [SYNC STATUS] Error details:', {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      });
       setSyncStatus('disconnected');
     }
   };
 
   const saveCurrentSession = useCallback(async () => {
     if (!mounted || !currentSession || messages.length === 0 || isSaving) {
-      if (isSaving) {
-        console.log('⏸️ [SAVE] Skipping save - already saving');
-      }
       return;
     }
     
     setIsSaving(true);
     
     try {
-      console.log('💾 [SAVE] Saving current session:', {
-        sessionId: currentSession.id,
-        messageCount: messages.length,
-        isManuallyRenamed: currentSession.isManuallyRenamed
-      });
-      
-      // 手動でリネームされていない場合のみ自動生成
       const title = currentSession.isManuallyRenamed
         ? currentSession.title
         : (messages.length > 0 ? ChatHistoryManager.generateSessionTitle(messages) : currentSession.title);
@@ -119,7 +102,6 @@ export default function ClientChatPage() {
         updatedAt: Date.now(),
       };
       
-      // 認証されている場合のみSupabase同期、されていない場合はローカルのみ
       if (session?.user?.id) {
         try {
           setSyncStatus('syncing');
@@ -128,13 +110,10 @@ export default function ClientChatPage() {
         } catch (error) {
           console.error('チャット保存エラー:', error);
           setSyncStatus('disconnected');
-          // エラーが発生してもローカル保存は継続
           ChatHistoryManager.saveChatSession(updatedSession);
         }
       } else {
-        // ゲストユーザーの場合はローカルストレージのみ
         ChatHistoryManager.saveChatSession(updatedSession);
-        console.log('👤 [GUEST] Chat saved to localStorage only');
       }
     } finally {
       setIsSaving(false);
@@ -143,32 +122,22 @@ export default function ClientChatPage() {
 
   useEffect(() => {
     if (messages.length > 0 && mounted && currentSession) {
-      // 即座にセッションを保存し、サイドバーを更新
       const timeoutId = setTimeout(() => {
-        console.log('⏰ [AUTO SAVE] Saving session immediately...');
         saveCurrentSession().then(() => {
-          // 保存完了後、サイドバーを更新
           setTimeout(() => {
-            console.log('🔄 [AUTO SAVE] Refreshing sidebar after save...');
             window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
           }, 100);
         });
-      }, 500); // 500msに短縮して即座に反映
+      }, 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [messages.length, conversationId, mounted, currentSession, saveCurrentSession]); // messagesではなくmessages.lengthを監視
+  }, [messages.length, conversationId, mounted, currentSession, saveCurrentSession]);
 
   const handleNewChat = async () => {
-    // 現在のセッションにメッセージがある場合は確実に保存する
     if (currentSession && messages.length > 0) {
-      console.log('🔄 [NEW CHAT] Saving current session before creating new one...');
       try {
         await saveCurrentSession();
-        console.log('✅ [NEW CHAT] Current session saved successfully');
-        
-        // サイドバーを更新して新しく保存されたセッションを表示
         setTimeout(() => {
-          console.log('🔄 [NEW CHAT] Refreshing sidebar...');
           window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
         }, 100);
       } catch (error) {
@@ -176,36 +145,26 @@ export default function ClientChatPage() {
       }
     }
     
-    console.log('➕ [NEW CHAT] Creating new session...');
     const newSession = ChatHistoryManager.createNewSession();
     setCurrentSession(newSession);
     setMessages([]);
     setConversationId(null);
-    console.log('✅ [NEW CHAT] New session created:', newSession.id);
   };
 
   const handleSessionSelect = async (chatSession: ChatSession) => {
-    // 現在のセッションを保存
     saveCurrentSession();
     
-    console.log('🔄 [SESSION SELECT] Loading session:', chatSession.id, 'title:', chatSession.title);
-    
-    // セッションを設定
     setCurrentSession(chatSession);
     setConversationId(chatSession.conversationId || null);
     
-    // メッセージを読み込み（認証済みの場合はSupabaseから、そうでなければローカルから）
     try {
       let messages = chatSession.messages || [];
       
-      // 認証済みユーザーの場合、Supabaseから最新メッセージを読み込み
       if (session?.user?.id && chatSession.id) {
-        console.log('🔄 [SESSION SELECT] Loading messages from Supabase for session:', chatSession.id);
         const supabaseMessages = await ChatHistoryManager.loadMessagesFromSupabase(chatSession.id);
         messages = supabaseMessages;
       }
       
-      // メッセージの重複を除去（timestamp + role + contentベース）
       const uniqueMessages = messages.filter((message, index, array) =>
         array.findIndex(m =>
           m.timestamp === message.timestamp &&
@@ -214,34 +173,21 @@ export default function ClientChatPage() {
         ) === index
       );
       
-      console.log('📨 [SESSION SELECT] Loaded messages:', messages.length, '→ unique:', uniqueMessages.length);
       setMessages(uniqueMessages);
     } catch (error) {
       console.error('❌ [SESSION SELECT] Failed to load messages:', error);
-      // エラー時はセッションに含まれているメッセージを使用
       setMessages(chatSession.messages || []);
     }
   };
 
   const handleSend = async () => {
-    console.log('🔧 [CLIENT] handleSend called, input:', input, 'loading:', loading);
-    console.log('🔧 [CLIENT] currentSession:', currentSession);
-    
-    if (!input.trim()) {
-      console.log('🔧 [CLIENT] Input is empty, returning');
-      return;
-    }
-    
-    if (loading) {
-      console.log('🔧 [CLIENT] Loading is true, returning');
-      return;
-    }
+    if (!input.trim() || loading) return;
     
     if (!currentSession) {
-      console.log('🔧 [CLIENT] No current session, creating new one');
       const newSession = ChatHistoryManager.createNewSession();
       setCurrentSession(newSession);
     }
+    
     const userMessage = input;
     setInput("");
     const userMsg: ChatMessage = { role: "user", content: userMessage, timestamp: Date.now() };
@@ -265,9 +211,7 @@ export default function ClientChatPage() {
           setConversationId(data.conversationId);
         }
         
-        // メッセージ送信完了後、即座にサイドバーを更新
         setTimeout(() => {
-          console.log('🔄 [CHAT] Refreshing sidebar after message...');
           window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
         }, 100);
       } else {
@@ -282,31 +226,14 @@ export default function ClientChatPage() {
     }
   };
 
-  // お気に入りの切り替え処理
   const handleToggleFavorite = (index: number) => {
     setMessages(prev => {
       const newMessages = [...prev];
-      // 実際のメッセージのインデックスを取得（ソート前の配列での位置）
-      const sortedMessages = [...prev].sort((a, b) => {
-        if (a.isFavorite && !b.isFavorite) return -1;
-        if (!a.isFavorite && b.isFavorite) return 1;
-        return b.timestamp - a.timestamp;
-      });
-      const targetMessage = sortedMessages[index];
-      const originalIndex = prev.findIndex(msg =>
-        msg.timestamp === targetMessage.timestamp &&
-        msg.role === targetMessage.role &&
-        msg.content === targetMessage.content
-      );
+      newMessages[index] = {
+        ...newMessages[index],
+        isFavorite: !newMessages[index].isFavorite
+      };
       
-      if (originalIndex !== -1) {
-        newMessages[originalIndex] = {
-          ...newMessages[originalIndex],
-          isFavorite: !newMessages[originalIndex].isFavorite
-        };
-      }
-      
-      // セッションを更新
       if (currentSession) {
         const updatedSession = {
           ...currentSession,
@@ -314,7 +241,6 @@ export default function ClientChatPage() {
           updatedAt: Date.now()
         };
         setCurrentSession(updatedSession);
-        // 保存処理をトリガー
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
         }, 100);
@@ -341,12 +267,10 @@ export default function ClientChatPage() {
     setIsComposing(false);
   };
 
-  // モバイルデバイスの場合はMobileChatPageを表示
   if (deviceMounted && isMobile) {
     return <MobileChatPage />;
   }
 
-  // 認証処理中またはマウント前は何も表示しない
   if (status === "loading" || !mounted) {
     return (
       <div className="h-screen bg-white flex items-center justify-center">
@@ -358,7 +282,6 @@ export default function ClientChatPage() {
     );
   }
 
-  // 未認証の場合は何も表示しない（middlewareがリダイレクトを処理）
   if (status === "unauthenticated") {
     return (
       <div className="h-screen bg-white flex items-center justify-center">
@@ -377,7 +300,7 @@ export default function ClientChatPage() {
           sidebarOpen ? 'ml-80' : 'ml-16'
         }`}
       >
-        {/* ヘッダー - デスクトップ用 */}
+        {/* ヘッダー */}
         <div className="sticky top-0 z-50 bg-white border-b border-gray-100">
           <div className="px-6 py-4">
             <div className="flex items-center justify-between">
@@ -385,7 +308,6 @@ export default function ClientChatPage() {
                 <div className="flex items-center relative">
                   <SunaLogo size="sm" />
                 </div>
-                {/* デバイス間同期状況表示 */}
                 {session?.user && (
                   <div className="flex items-center space-x-2">
                     <div className={`w-2 h-2 rounded-full ${
@@ -397,11 +319,7 @@ export default function ClientChatPage() {
                       syncStatus === 'connected' ? 'text-green-600' :
                       syncStatus === 'syncing' ? 'text-yellow-600' :
                       'text-red-600'
-                    }`} title={
-                      syncStatus === 'connected' ? 'Supabaseに正常に接続されています。チャット履歴は全デバイスで同期されます。' :
-                      syncStatus === 'syncing' ? 'Supabaseとの同期を確認中です...' :
-                      'Supabaseとの接続に問題があります。チャットはローカルに保存されますが、デバイス間同期はできません。'
-                    }>
+                    }`}>
                       {syncStatus === 'connected' ? 'デバイス間同期' :
                        syncStatus === 'syncing' ? '同期中...' :
                        'ローカルのみ'}
@@ -410,7 +328,6 @@ export default function ClientChatPage() {
                       <button
                         onClick={checkSyncStatus}
                         className="text-xs text-blue-600 hover:text-blue-800 underline"
-                        title="同期状況を再確認"
                       >
                         再試行
                       </button>
@@ -427,7 +344,11 @@ export default function ClientChatPage() {
 
         {/* メインコンテンツ */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto flex flex-col-reverse" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div 
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto" 
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center px-6">
                 <div className="text-center mb-8">
@@ -443,10 +364,8 @@ export default function ClientChatPage() {
                   <p className="text-lg text-gray-500 mb-8">今日は何についてお話ししましょうか？</p>
                   <button
                     onClick={async () => {
-                      // 既に送信中の場合は何もしない
                       if (loading) return;
                       
-                      // 直接メッセージを送信（入力フィールドを経由しない）
                       const userMessage = "こんにちは";
                       const userMsg: ChatMessage = { role: "user", content: userMessage, timestamp: Date.now() };
                       setMessages(prev => [...prev, userMsg]);
@@ -469,9 +388,7 @@ export default function ClientChatPage() {
                             setConversationId(data.conversationId);
                           }
                           
-                          // メッセージ送信完了後、即座にサイドバーを更新
                           setTimeout(() => {
-                            console.log('🔄 [HELLO BUTTON] Refreshing sidebar after hello message...');
                             window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
                           }, 100);
                         } else {
@@ -500,11 +417,10 @@ export default function ClientChatPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col">
-                <div className="max-w-3xl mx-auto px-6 py-8 space-y-6 w-full">
-                  {/* メッセージを配列の順序通りに表示（ソートしない） */}
-                  {messages.map((msg, idx) => (
-                  <div key={`${msg.role}-${idx}-${msg.timestamp}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className="max-w-3xl mx-auto px-6 py-8 w-full">
+                {/* メッセージを順序通りに表示 */}
+                {messages.map((msg, idx) => (
+                  <div key={`${msg.role}-${msg.timestamp}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} mb-4`}>
                     <div className={`max-w-2xl ${msg.role === "user" ? "order-2" : "order-1"} relative group`}>
                       <div
                         className={`px-6 py-4 rounded-2xl ${
@@ -517,22 +433,21 @@ export default function ClientChatPage() {
                           <div className={`text-sm font-medium ${msg.role === "user" ? "text-blue-100" : "text-gray-600"}`}>
                             {msg.role === "user" ? "あなた" : "Suna"}
                           </div>
-                          {/* お気に入りボタン */}
                           <button
                             onClick={() => handleToggleFavorite(idx)}
                             className={`ml-2 p-1 rounded-full transition-all duration-200 ${
-                              msg.role === "user"
-                                ? "hover:bg-blue-400"
+                              msg.role === "user" 
+                                ? "hover:bg-blue-400" 
                                 : "hover:bg-gray-200"
                             } ${msg.isFavorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                             title={msg.isFavorite ? "お気に入りを解除" : "お気に入りに追加"}
                           >
                             <svg
                               className={`w-5 h-5 ${
-                                msg.isFavorite
-                                  ? "text-yellow-400 fill-current"
-                                  : msg.role === "user"
-                                    ? "text-blue-200"
+                                msg.isFavorite 
+                                  ? "text-yellow-400 fill-current" 
+                                  : msg.role === "user" 
+                                    ? "text-blue-200" 
                                     : "text-gray-400"
                               }`}
                               fill={msg.isFavorite ? "currentColor" : "none"}
@@ -554,10 +469,12 @@ export default function ClientChatPage() {
                       </div>
                     </div>
                   </div>
-                  ))}
-                  {loading && (
-                    <div className="flex justify-start">
-                      <div className="max-w-2xl">
+                ))}
+
+                {/* ローディング表示 */}
+                {loading && (
+                  <div className="flex justify-start mb-4">
+                    <div className="max-w-2xl">
                       <div className="px-6 py-4 rounded-2xl bg-gray-100">
                         <div className="text-sm font-medium mb-2 text-gray-600">Suna</div>
                         <div className="flex items-center space-x-3">
@@ -597,14 +514,12 @@ export default function ClientChatPage() {
               </div>
             )}
           </div>
-        </div>
 
-          {/* フッター入力エリア - デスクトップ用 */}
+          {/* フッター入力エリア */}
           <div className="px-6 py-4 border-t border-gray-100 bg-white">
             <form
               onSubmit={e => {
                 e.preventDefault();
-                console.log('🔧 [CLIENT] Form submitted');
                 handleSend();
               }}
               className="flex items-end space-x-4"
@@ -632,7 +547,7 @@ export default function ClientChatPage() {
         </div>
       </div>
 
-      {/* サイドバー - デスクトップ用 */}
+      {/* サイドバー */}
       <ChatSidebar
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}

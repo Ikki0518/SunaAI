@@ -1,13 +1,25 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import UserMenu from './UserMenu';
+import ChatSidebar from './ChatSidebar';
+import SunaLogo from '@/app/components/SunaLogo';
 import { ChatSession, ChatMessage } from '@/app/types/chat';
-import { FixedChatHistoryManager } from '@/app/utils/chatHistory-fixed';
 import { ChatHistoryManager } from '@/app/utils/chatHistory';
+import { useDeviceDetection } from '@/app/hooks/useDeviceDetection';
+import MobileChatPage from './MobileChatPage';
 
-export default function FixedClientChatPage() {
+interface Props {
+  children: React.ReactNode;
+}
+
+export default function ClientChatPageFixed() {
   const { data: session, status } = useSession();
-  
+  const router = useRouter();
+  const { isMobile, mounted: deviceMounted } = useDeviceDetection();
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -15,147 +27,124 @@ export default function FixedClientChatPage() {
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'connected' | 'disconnected' | 'syncing'>('disconnected');
-  const [isSaving, setIsSaving] = useState(false);
+
+  // Auto-scroll function for column-reverse layout
+  const scrollToBottom = useCallback(() => {
+    if (messagesContainerRef.current) {
+      // For column-reverse, scrollTop = 0 is the bottom
+      messagesContainerRef.current.scrollTop = 0;
+    }
+  }, []);
+
+  // Auto-scroll when messages update
+  useEffect(() => {
+    // Small delay to wait for DOM update
+    setTimeout(scrollToBottom, 100);
+  }, [messages, scrollToBottom]);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // 初期セッション作成（改善版）
   useEffect(() => {
     if (mounted && !currentSession && status !== "loading") {
-      // 新しいセッションを作成（履歴なし）
-      const { session: newSession, messages: newMessages, conversationId: newConvId } = 
-        FixedChatHistoryManager.startNewConversation();
-      
+      const newSession = ChatHistoryManager.createNewSession();
       setCurrentSession(newSession);
-      setMessages(newMessages); // 必ず空の配列
-      setConversationId(newConvId);
-      
-      console.log('🎉 [INIT] Started with clean session:', {
-        sessionId: newSession.id,
-        conversationId: newConvId,
-        messageCount: newMessages.length // 必ず0
-      });
+      setMessages([]);
+      setConversationId(null);
     }
   }, [mounted, currentSession, status]);
 
-  /**
-   * 新しいチャットを開始（改善版）
-   * - 現在のセッションを保存
-   * - 完全に新しいセッションを作成
-   * - メッセージを確実にクリア
-   */
-  const handleNewChat = async () => {
-    console.log('🆕 [NEW CHAT] Starting new conversation...');
+  const saveCurrentSession = useCallback(async () => {
+    if (!mounted || !currentSession || messages.length === 0) {
+      return;
+    }
     
-    // 現在のセッションにメッセージがある場合は保存
+    try {
+      const title = currentSession.isManuallyRenamed
+        ? currentSession.title
+        : (messages.length > 0 ? ChatHistoryManager.generateSessionTitle(messages) : currentSession.title);
+      
+      const updatedSession: ChatSession = {
+        ...currentSession,
+        messages,
+        conversationId: conversationId || undefined,
+        title,
+        updatedAt: Date.now(),
+      };
+    } catch (error) {
+      console.error('チャット保存エラー:', error);
+    }
+  }, [mounted, currentSession, messages, conversationId]);
+
+  useEffect(() => {
+    if (messages.length > 0 && mounted && currentSession) {
+      const timeoutId = setTimeout(() => {
+        saveCurrentSession().then(() => {
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+          }, 100);
+        });
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [messages.length, conversationId, mounted, currentSession, saveCurrentSession]);
+
+  const handleNewChat = async () => {
     if (currentSession && messages.length > 0) {
-      console.log('💾 [NEW CHAT] Saving current session before creating new one...');
       try {
-        await saveCurrentSession();
-        console.log('✅ [NEW CHAT] Current session saved');
+        saveCurrentSession();
       } catch (error) {
         console.error('❌ [NEW CHAT] Failed to save current session:', error);
       }
     }
     
-    // 完全に新しいセッションを作成
-    const { session: newSession, messages: newMessages, conversationId: newConvId } = 
-      FixedChatHistoryManager.startNewConversation();
-    
-    // 状態を更新（メッセージは必ず空）
+    const newSession = ChatHistoryManager.createNewSession();
     setCurrentSession(newSession);
-    setMessages([]); // 明示的に空の配列を設定
-    setConversationId(newConvId);
-    setInput(""); // 入力フィールドもクリア
-    
-    console.log('✅ [NEW CHAT] New conversation started:', {
-      sessionId: newSession.id,
-      conversationId: newConvId,
-      messageCount: 0
-    });
-    
-    // サイドバーを更新
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
-    }, 100);
+    setMessages([]);
+    setConversationId(null);
   };
 
-  /**
-   * セッション選択時の処理（改善版）
-   * - 現在のセッションを保存
-   * - 選択されたセッションのメッセージを正しく読み込む
-   * - conversationIdでフィルタリング
-   */
-  const handleSessionSelect = async (selectedSession: ChatSession) => {
-    console.log('📂 [SELECT] Selecting session:', {
-      sessionId: selectedSession.id,
-      conversationId: selectedSession.conversationId,
-      title: selectedSession.title
-    });
+  const handleSessionSelect = async (chatSession: ChatSession) => {
+    saveCurrentSession();
     
-    // 現在のセッションを保存
-    if (currentSession && messages.length > 0) {
-      await saveCurrentSession();
-    }
+    setCurrentSession(chatSession);
+    setConversationId(chatSession.conversationId || null);
     
-    // セッションを切り替え
-    setCurrentSession(selectedSession);
-    setConversationId(selectedSession.conversationId || null);
-    
-    // メッセージを読み込み（conversationIdでフィルタリング）
     try {
-      if (selectedSession.conversationId) {
-        const loadedMessages = await FixedChatHistoryManager.loadMessagesForSession(
-          selectedSession.id,
-          selectedSession.conversationId,
-          session?.user?.id
-        );
-        
-        console.log('📨 [SELECT] Messages loaded:', {
-          count: loadedMessages.length,
-          conversationId: selectedSession.conversationId
-        });
-        
-        setMessages(loadedMessages);
-      } else {
-        // conversationIdがない場合は空のメッセージ
-        console.warn('⚠️ [SELECT] No conversationId, using empty messages');
-        setMessages([]);
+      let messages = chatSession.messages || [];
+      
+      if (session?.user?.id && chatSession.id) {
+        const supabaseMessages = await ChatHistoryManager.loadMessagesFromSupabase(chatSession.id);
+        messages = supabaseMessages;
       }
+      
+      const uniqueMessages = messages.filter((message, index, array) =>
+        array.findIndex(m =>
+          m.timestamp === message.timestamp &&
+          m.role === message.role &&
+          m.content === message.content
+        ) === index
+      );
+      
+      setMessages(uniqueMessages);
     } catch (error) {
-      console.error('❌ [SELECT] Failed to load messages:', error);
-      setMessages([]);
+      console.error('❌ [SESSION SELECT] Failed to load messages:', error);
+      setMessages(chatSession.messages || []);
     }
   };
 
-  /**
-   * メッセージ送信時の処理（改善版）
-   * - conversationIdを必ず含める
-   */
   const handleSend = async () => {
     if (!input.trim() || loading) return;
     
-    // conversationIdがない場合は新しく生成
-    if (!conversationId) {
-      const newConvId = FixedChatHistoryManager.generateUUID();
-      setConversationId(newConvId);
-      
-      if (currentSession) {
-        currentSession.conversationId = newConvId;
-      }
+    if (!currentSession) {
+      const newSession = ChatHistoryManager.createNewSession();
+      setCurrentSession(newSession);
     }
     
     const userMessage = input;
     setInput("");
-    const userMsg: ChatMessage = { 
-      role: "user", 
-      content: userMessage, 
-      timestamp: Date.now() 
-    };
-    
+    const userMsg: ChatMessage = { role: "user", content: userMessage, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
 
@@ -165,82 +154,229 @@ export default function FixedClientChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: userMessage,
-          conversationId: conversationId, // 必ずconversationIdを送信
-          sessionId: currentSession?.id
+          conversationId: conversationId
         }),
       });
-      
       const data = await res.json();
-      
       if (res.ok && data.answer) {
-        const botMsg: ChatMessage = { 
-          role: "bot", 
-          content: data.answer, 
-          timestamp: Date.now() 
-        };
-        
+        const botMsg: ChatMessage = { role: "bot", content: data.answer, timestamp: Date.now() };
         setMessages(prev => [...prev, botMsg]);
-        
-        // conversationIdを更新（APIから返された場合）
-        if (data.conversationId && !conversationId) {
+        if (data.conversationId) {
           setConversationId(data.conversationId);
-          if (currentSession) {
-            currentSession.conversationId = data.conversationId;
-          }
         }
+        
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+        }, 100);
       } else {
-        const errorMsg: ChatMessage = { 
-          role: "bot", 
-          content: "エラーが発生しました", 
-          timestamp: Date.now() 
-        };
+        const errorMsg: ChatMessage = { role: "bot", content: "エラーが発生しました", timestamp: Date.now() };
         setMessages(prev => [...prev, errorMsg]);
       }
     } catch (error) {
-      const errorMsg: ChatMessage = { 
-        role: "bot", 
-        content: "エラーが発生しました", 
-        timestamp: Date.now() 
-      };
+      const errorMsg: ChatMessage = { role: "bot", content: "エラーが発生しました", timestamp: Date.now() };
       setMessages(prev => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * セッション保存処理（改善版）
-   * - conversationIdを必ず含める
-   */
-  const saveCurrentSession = useCallback(async () => {
-    if (!mounted || !currentSession || messages.length === 0 || isSaving) {
-      return;
-    }
-    
-    setIsSaving(true);
-    
-    try {
-      const updatedSession: ChatSession = {
-        ...currentSession,
-        messages,
-        conversationId: conversationId || undefined,
-        updatedAt: Date.now(),
+  const handleToggleFavorite = (index: number) => {
+    setMessages(prev => {
+      const newMessages = [...prev];
+      newMessages[index] = {
+        ...newMessages[index],
+        isFavorite: !newMessages[index].isFavorite
       };
       
-      // 保存処理（既存のロジックを使用）
-      if (session?.user?.id) {
-        // Supabaseに保存
-        await ChatHistoryManager.syncChatSession(updatedSession, session.user.id);
-      } else {
-        // ローカルに保存
-        ChatHistoryManager.saveChatSession(updatedSession);
+      if (currentSession) {
+        const updatedSession = {
+          ...currentSession,
+          messages: newMessages,
+          updatedAt: Date.now()
+        };
+        setCurrentSession(updatedSession);
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('chatHistoryUpdated'));
+        }, 100);
       }
       
-      console.log('💾 [SAVE] Session saved with conversationId:', conversationId);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [mounted, currentSession, messages, conversationId, session?.user?.id, isSaving]);
+      return newMessages;
+    });
+  };
 
-  // ... 残りのコンポーネントロジックは既存のものを使用
+  const [isComposing, setIsComposing] = useState(false);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !isComposing) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleCompositionStart = () => {
+    setIsComposing(true);
+  };
+
+  const handleCompositionEnd = () => {
+    setIsComposing(false);
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  if (deviceMounted && isMobile) {
+    return <MobileChatPage />;
+  }
+
+  if (status === "loading" || !mounted) {
+    return (
+      
+        
+          
+            
+            読み込み中...
+          
+        
+      
+    );
+  }
+
+  if (status === "unauthenticated") {
+    return (
+      
+        
+          
+            
+            認証中...
+          
+        
+      
+    );
+  }
+
+  return (
+    
+      
+        
+          
+            
+              
+                <SunaLogo size="sm"   />
+                
+                {session?.user && (
+                  
+                )}
+              
+              
+                <UserMenu />
+              
+            
+          
+        
+
+          
+            
+              
+              {messages.length === 0 ? (
+                
+                  
+                    {session?.user?.name ? (
+                      
+                         さん
+                      
+                    ) : (
+                      
+                         
+                      
+                    )}
+                    
+                      今日は何についてお話ししましょうか？
+                    
+                    
+                      
+                        
+                          
+                            
+                            
+                          
+                          
+                            チャットを始める
+                          
+                        
+                      
+                    
+                  
+                
+              ) : (
+                
+                  {messages.map((msg, idx) => (
+                    
+                      
+                        
+                          
+                            
+                              {msg.role === "user" ? "あなた" : "Suna"}
+                            
+                            
+                              
+                                
+                              
+                            
+                            
+                              {msg.content}
+                            
+                          
+                        
+                      
+                    
+                  ))}
+
+                  
+                  {loading && (
+                    
+                      
+                        
+                          Suna
+                        
+                        
+                          
+                            
+                              
+                            
+                            
+                          
+                        
+                      
+                    
+                  )}
+                
+              
+            
+          
+        
+
+          
+            
+              
+                
+                  
+                    メッセージを入力してください...
+                  
+                  
+                    送信
+                  
+                
+              
+            
+          
+        
+      
+      
+        
+          
+        
+      
+    
+  );
 }

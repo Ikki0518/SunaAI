@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { ChatSession } from '@/app/types/chat';
 import { ChatHistoryManager } from '@/app/utils/chatHistory';
-
 interface ChatSidebarProps {
   currentSessionId?: string;
   onSessionSelect: (session: ChatSession) => void;
@@ -11,7 +10,6 @@ interface ChatSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
 }
-
 export default function ChatSidebar({
   currentSessionId,
   onSessionSelect,
@@ -27,50 +25,34 @@ export default function ChatSidebar({
   const [loading, setLoading] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
   const [lastLoadTime, setLastLoadTime] = useState<number>(0);
-
-  // SSR回避のためのマウント確認
   useEffect(() => {
     setMounted(true);
   }, []);
-
   const loadChatHistory = useCallback(async () => {
     if (loading) return;
-    
-    // 短時間での連続読み込みを防止（5秒）
     const now = Date.now();
     if (now - lastLoadTime < 5000) {
       console.log('⏸️ [SIDEBAR] Skipping load - too soon after last load');
       return;
     }
-    
-    // エラーが多発している場合は読み込みを制限
     if (errorCount >= 3) {
       console.log('⏸️ [SIDEBAR] Skipping load - too many errors');
       return;
     }
-    
     console.log('🔍 [DEBUG] loadChatHistory called, loading:', loading);
-    
     try {
       setLoading(true);
       setLastLoadTime(now);
-      
-      // 重複セッションをクリーンアップ
       ChatHistoryManager.cleanupDuplicateSessions();
-      
-      // 認証されている場合のみSupabaseから読み込み、そうでない場合はローカルのみ
       if (session?.user?.id) {
         console.log('🐘 [SIDEBAR] Loading from Supabase + Local for user:', session.user.id);
         const sessions = await ChatHistoryManager.loadAllSessions(session.user.id);
-        
-        // サイドバーレベルで重複除去を実行
         console.log('🧹 [SIDEBAR] Original sessions count:', sessions.length);
         const deduplicatedSessions = ChatHistoryManager.deduplicateSessionsByTitle(sessions);
         console.log('🧹 [SIDEBAR] After deduplication:', deduplicatedSessions.length);
-        
         setChatSessions(deduplicatedSessions);
         console.log('🐘 [SIDEBAR] Chat history loaded:', deduplicatedSessions.length, 'sessions');
-        setErrorCount(0); // 成功したらエラーカウントをリセット
+        setErrorCount(0);
       } else {
         console.log('👤 [SIDEBAR] Guest user - loading from local storage only');
         const localSessions = ChatHistoryManager.getSortedSessions();
@@ -80,70 +62,36 @@ export default function ChatSidebar({
     } catch (error) {
       console.error('Failed to load chat history:', error);
       setErrorCount(prev => prev + 1);
-      
-      // フォールバック: ローカルストレージのみ
       const localSessions = ChatHistoryManager.getSortedSessions();
       setChatSessions(localSessions);
     } finally {
       setLoading(false);
     }
   }, [session?.user?.id, loading, lastLoadTime, errorCount]);
-
-  // チャット履歴更新イベントをリッスン
   useEffect(() => {
     if (!mounted) return;
-
     const handleChatHistoryUpdate = () => {
       console.log('🔄 [SIDEBAR] Chat history update event received');
       loadChatHistory();
     };
-
     window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
-    
     return () => {
       window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
     };
   }, [mounted, loadChatHistory]);
-
-  // 🔄 初回読み込みのみ（無限ループ防止）
   useEffect(() => {
     if (mounted && !loading) {
       console.log('🔍 [DEBUG] Initial load effect triggered');
       loadChatHistory();
     }
-  }, [mounted]); // loadChatHistoryを依存配列から削除
-
-  // 🔄 ローカル同期リスナー（認証されている場合のみ）
+  }, [mounted]);
   useEffect(() => {
     if (!mounted || !session?.user?.id) return;
-
     console.log('🔍 [DEBUG] Local sync listener temporarily disabled to prevent infinite loop');
-    
-    // 一時的に無効化
-    /*
-    console.log('🔍 [DEBUG] Setting up local sync listener');
-    let listenerCount = 0;
-    
-    const cleanup = ChatHistoryManager.setupLocalSyncListener(() => {
-      listenerCount++;
-      console.log(`📡 [LOCAL SYNC] Refreshing chat history due to update (call #${listenerCount})`);
-      if (!loading) {
-        loadChatHistory();
-      }
-    });
-
-    return () => {
-      console.log('🔍 [DEBUG] Cleaning up local sync listener');
-      cleanup?.();
-    };
-    */
-  }, [mounted, session?.user?.id]); // loadChatHistoryを依存配列から削除
-
+  }, [mounted, session?.user?.id]);
   const handleDeleteSession = (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
     if (!confirm('このチャットを削除しますか？')) return;
-
     try {
       ChatHistoryManager.deleteChatSession(sessionId);
       setChatSessions(prev => prev.filter(s => s.id !== sessionId));
@@ -153,35 +101,30 @@ export default function ChatSidebar({
       alert('チャットの削除に失敗しました');
     }
   };
-
   const handleTogglePin = (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
     try {
       ChatHistoryManager.togglePinSession(sessionId);
-      loadChatHistory(); // リロードしてソート順を更新
+      loadChatHistory();
     } catch (error) {
       console.error('Failed to toggle pin session:', error);
       alert('ピン留めの切り替えに失敗しました');
     }
   };
-
   const handleStartRename = (sessionId: string, currentTitle: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingSessionId(sessionId);
     setEditingTitle(currentTitle);
   };
-
   const handleSaveRename = (sessionId: string) => {
     if (!editingTitle.trim()) {
       setEditingSessionId(null);
       setEditingTitle('');
       return;
     }
-
     try {
       ChatHistoryManager.renameSession(sessionId, editingTitle);
-      loadChatHistory(); // リロードして変更を反映
+      loadChatHistory();
       setEditingSessionId(null);
       setEditingTitle('');
     } catch (error) {
@@ -189,32 +132,23 @@ export default function ChatSidebar({
       alert('リネームに失敗しました');
     }
   };
-
   const handleCancelRename = () => {
     setEditingSessionId(null);
     setEditingTitle('');
   };
-
   const formatDate = (timestamp: number) => {
     if (!mounted) return '';
-    
-    // タイムスタンプの検証
     if (!timestamp || isNaN(timestamp) || timestamp <= 0) {
       return '不明';
     }
-    
     try {
       const date = new Date(timestamp);
-      
-      // 日付オブジェクトの検証
       if (isNaN(date.getTime())) {
         return '不明';
       }
-      
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-      
       if (date >= today) {
         return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
       } else if (date >= yesterday) {
@@ -227,10 +161,8 @@ export default function ChatSidebar({
       return '不明';
     }
   };
-
   return (
     <>
-      {/* サイドバー - デスクトップ用 */}
       <div 
         className={`
           fixed top-0 left-0 h-full z-40
@@ -241,9 +173,7 @@ export default function ChatSidebar({
         `}
         style={{ minWidth: isOpen ? '320px' : '64px' }}
       >
-        {/* 常に表示されるボタン群 */}
         <div className="flex flex-col p-2 space-y-1 bg-white border-b border-gray-200">
-          {/* ハンバーガーメニューボタン */}
           <button
             onClick={onToggle}
             className="w-12 h-12 hover:bg-gray-100 rounded-lg transition-colors flex items-center justify-center cursor-pointer"
@@ -253,8 +183,6 @@ export default function ChatSidebar({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          
-          {/* 新規チャットボタン */}
           <button
             onClick={onNewChat}
             className="w-12 h-12 hover:bg-gray-100 rounded-lg transition-colors flex items-center justify-center cursor-pointer"
@@ -265,10 +193,7 @@ export default function ChatSidebar({
             </svg>
           </button>
         </div>
-
-        {/* サイドバーコンテンツ - 常にDOMに存在、CSSでアニメーション制御 */}
         <div className={`h-full flex flex-col transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-          {/* ヘッダー */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <h2 className={`text-lg font-semibold text-gray-900 transition-all duration-500 ${
               isOpen ? 'opacity-100 translate-y-0 delay-200' : 'opacity-0 translate-y-4'
@@ -276,8 +201,6 @@ export default function ChatSidebar({
               チャット
             </h2>
           </div>
-
-          {/* チャット履歴リスト */}
           <div className="flex-1 overflow-y-auto">
             {chatSessions.length === 0 ? (
               <div className={`text-center p-8 text-gray-500 transition-all duration-500 ${
@@ -315,13 +238,11 @@ export default function ChatSidebar({
                     }}
                   >
                     <div className="flex-1 min-w-0 flex items-center">
-                      {/* ピン留めアイコン */}
                       {chatSession.isPinned && (
                         <svg className="w-3 h-3 text-yellow-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                         </svg>
                       )}
-                      
                       <div className="flex-1 min-w-0">
                         {editingSessionId === chatSession.id ? (
                           <input
@@ -354,10 +275,8 @@ export default function ChatSidebar({
                         )}
                       </div>
                     </div>
-                    
                     {editingSessionId !== chatSession.id && (
                       <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {/* ピン留めボタン */}
                         <button
                           onClick={(e) => handleTogglePin(chatSession.id, e)}
                           className={`p-1 rounded transition-colors ${
@@ -371,8 +290,6 @@ export default function ChatSidebar({
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
                         </button>
-                        
-                        {/* リネームボタン */}
                         <button
                           onClick={(e) => handleStartRename(chatSession.id, chatSession.title, e)}
                           className="p-1 text-gray-400 hover:text-blue-500 rounded transition-colors"
@@ -382,8 +299,6 @@ export default function ChatSidebar({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
-                        
-                        {/* 削除ボタン */}
                         <button
                           onClick={(e) => handleDeleteSession(chatSession.id, e)}
                           className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"

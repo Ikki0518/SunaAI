@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 
 // SSRを無効にしてクライアントサイドのみでレンダリング
-const ClientChatPage = dynamic(() => import('./components/ClientChatPage-column-reverse'), {
+const ClientChatPage = dynamic(() => import('./components/ClientChatPage-fixed'), {
   ssr: false,
   loading: () => (
     <div className="h-screen bg-white flex items-center justify-center">
@@ -16,5 +16,9 @@ const ClientChatPage = dynamic(() => import('./components/ClientChatPage-column-
 });
 
 export default function ChatPage() {
-  return <ClientChatPage />;
+  return (
+    <div className="h-screen w-full flex items-center justify-center">
+      <ClientChatPage />
+    </div>
+  );
 }

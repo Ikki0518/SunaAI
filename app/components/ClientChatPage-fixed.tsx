@@ -347,7 +347,7 @@ export default function ClientChatPageFixed() {
                 </div>
               </div>
             ) : (
-              <div className="max-w-3xl mx-auto px-6 py-8 w-full">
+              <div className="px-6 py-8 w-full">
                 {messages.map((msg, idx) => (
                   <div key={`${msg.role}-${msg.timestamp}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} mb-4`}>
                     <div className={`max-w-2xl ${msg.role === "user" ? "order-2" : "order-1"} relative group`}>

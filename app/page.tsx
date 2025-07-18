@@ -16,9 +16,9 @@ const ClientChatPage = dynamic(() => import('./components/ClientChatPage-fixed')
 });
 
 export default function ChatPage() {
-  return (
-    <div className="h-screen w-full flex items-center justify-center">
-      <ClientChatPage />
-    </div>
-  );
+  return (
+    <div className="h-screen w-full">
+      <ClientChatPage />
+    </div>
+  );
 }

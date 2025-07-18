@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { ChatSession } from '@/app/types/chat';
 import { ChatHistoryManager } from '@/app/utils/chatHistory';
+
 interface ChatSidebarProps {
   currentSessionId?: string;
   onSessionSelect: (session: ChatSession) => void;
@@ -10,6 +11,7 @@ interface ChatSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
 }
+
 export default function ChatSidebar({
   currentSessionId,
   onSessionSelect,
@@ -25,9 +27,20 @@ export default function ChatSidebar({
   const [loading, setLoading] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
   const [lastLoadTime, setLastLoadTime] = useState<number>(0);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 🎯 修正1: 空のチャットセッションを除外するフィルタリング関数
+  const filterNonEmptySessions = (sessions: ChatSession[]): ChatSession[] => {
+    return sessions.filter(session => {
+      // メッセージが存在し、かつ空でない場合のみ表示
+      return session.messages && session.messages.length > 0;
+    });
+  };
+
   const loadChatHistory = useCallback(async () => {
     if (loading) return;
     const now = Date.now();
@@ -44,30 +57,44 @@ export default function ChatSidebar({
       setLoading(true);
       setLastLoadTime(now);
       ChatHistoryManager.cleanupDuplicateSessions();
+      
       if (session?.user?.id) {
         console.log('🐘 [SIDEBAR] Loading from Supabase + Local for user:', session.user.id);
         const sessions = await ChatHistoryManager.loadAllSessions(session.user.id);
         console.log('🧹 [SIDEBAR] Original sessions count:', sessions.length);
+        
         const deduplicatedSessions = ChatHistoryManager.deduplicateSessionsByTitle(sessions);
         console.log('🧹 [SIDEBAR] After deduplication:', deduplicatedSessions.length);
-        setChatSessions(deduplicatedSessions);
-        console.log('🐘 [SIDEBAR] Chat history loaded:', deduplicatedSessions.length, 'sessions');
+        
+        // 🎯 修正3: 空のチャットセッションを除外
+        const nonEmptySessions = filterNonEmptySessions(deduplicatedSessions);
+        console.log('🧹 [SIDEBAR] After filtering empty sessions:', nonEmptySessions.length);
+        
+        setChatSessions(nonEmptySessions);
+        console.log('🐘 [SIDEBAR] Chat history loaded:', nonEmptySessions.length, 'sessions');
         setErrorCount(0);
       } else {
         console.log('👤 [SIDEBAR] Guest user - loading from local storage only');
         const localSessions = ChatHistoryManager.getSortedSessions();
-        setChatSessions(localSessions);
-        console.log('👤 [SIDEBAR] Local sessions loaded:', localSessions.length, 'sessions');
+        
+        // 🎯 修正3: ローカルセッションも空のものを除外
+        const nonEmptyLocalSessions = filterNonEmptySessions(localSessions);
+        console.log('🧹 [SIDEBAR] Local sessions after filtering:', nonEmptyLocalSessions.length);
+        
+        setChatSessions(nonEmptyLocalSessions);
+        console.log('👤 [SIDEBAR] Local sessions loaded:', nonEmptyLocalSessions.length, 'sessions');
       }
     } catch (error) {
       console.error('Failed to load chat history:', error);
       setErrorCount(prev => prev + 1);
       const localSessions = ChatHistoryManager.getSortedSessions();
-      setChatSessions(localSessions);
+      const nonEmptyLocalSessions = filterNonEmptySessions(localSessions);
+      setChatSessions(nonEmptyLocalSessions);
     } finally {
       setLoading(false);
     }
   }, [session?.user?.id, loading, lastLoadTime, errorCount]);
+
   useEffect(() => {
     if (!mounted) return;
     const handleChatHistoryUpdate = () => {
@@ -79,28 +106,60 @@ export default function ChatSidebar({
       window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate);
     };
   }, [mounted, loadChatHistory]);
+
   useEffect(() => {
     if (mounted && !loading) {
       console.log('🔍 [DEBUG] Initial load effect triggered');
       loadChatHistory();
     }
   }, [mounted]);
+
   useEffect(() => {
     if (!mounted || !session?.user?.id) return;
     console.log('🔍 [DEBUG] Local sync listener temporarily disabled to prevent infinite loop');
   }, [mounted, session?.user?.id]);
-  const handleDeleteSession = (sessionId: string, e: React.MouseEvent) => {
+
+  // 🔥 修正: ChatHistoryManagerの新しい削除機能を使用
+  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('このチャットを削除しますか？')) return;
+    
+    if (!confirm('このチャットを削除しますか？この操作は取り消せません。')) return;
+
+    setDeletingSessionId(sessionId);
+
     try {
-      ChatHistoryManager.deleteChatSession(sessionId);
+      console.log('🗑️ [SIDEBAR] Starting session deletion:', sessionId);
+
+      // ChatHistoryManagerの統合削除機能を使用（Supabase + ローカルストレージ）
+      await ChatHistoryManager.deleteChatSession(sessionId, session?.user?.id);
+      console.log('✅ [SIDEBAR] Successfully deleted using ChatHistoryManager');
+
+      // 🎯 削除成功後は最新状態を再読み込み（確実性のため）
       setChatSessions(prev => prev.filter(s => s.id !== sessionId));
+      
+      // さらに確実性を向上させるため、少し遅延後にサーバーから再読み込み
+      setTimeout(() => {
+        loadChatHistory();
+      }, 500);
+
       console.log('🗑️ [SIDEBAR] Session deleted successfully:', sessionId);
+
     } catch (error) {
-      console.error('Failed to delete chat session:', error);
-      alert('チャットの削除に失敗しました');
+      console.error('❌ [SIDEBAR] Failed to delete chat session:', error);
+      
+      // エラーの詳細をユーザーに表示
+      if (error instanceof Error) {
+        alert(`チャットの削除に失敗しました: ${error.message}`);
+      } else {
+        alert('チャットの削除に失敗しました。ネットワーク接続を確認してください。');
+      }
+      
+      // エラー時は画面の更新を行わない（データベースとの整合性を保つため）
+    } finally {
+      setDeletingSessionId(null);
     }
   };
+
   const handleTogglePin = (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -111,11 +170,13 @@ export default function ChatSidebar({
       alert('ピン留めの切り替えに失敗しました');
     }
   };
+
   const handleStartRename = (sessionId: string, currentTitle: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingSessionId(sessionId);
     setEditingTitle(currentTitle);
   };
+
   const handleSaveRename = (sessionId: string) => {
     if (!editingTitle.trim()) {
       setEditingSessionId(null);
@@ -132,35 +193,72 @@ export default function ChatSidebar({
       alert('リネームに失敗しました');
     }
   };
+
   const handleCancelRename = () => {
     setEditingSessionId(null);
     setEditingTitle('');
   };
+
+  // 🎯 修正1: より詳細で読みやすい時刻表示フォーマット
   const formatDate = (timestamp: number) => {
     if (!mounted) return '';
+    
+    // タイムスタンプの検証を強化
     if (!timestamp || isNaN(timestamp) || timestamp <= 0) {
+      console.warn('⚠️ [SIDEBAR] Invalid timestamp:', timestamp);
       return '不明';
     }
+    
     try {
       const date = new Date(timestamp);
+      
+      // 日付オブジェクトの検証
       if (isNaN(date.getTime())) {
+        console.warn('⚠️ [SIDEBAR] Invalid date object from timestamp:', timestamp);
         return '不明';
       }
+      
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+      const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      
+      // より詳細な時刻表示
       if (date >= today) {
-        return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        // 今日の場合は時刻のみ
+        return date.toLocaleTimeString('ja-JP', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
       } else if (date >= yesterday) {
-        return '昨日';
+        // 昨日の場合
+        return `昨日 ${date.toLocaleTimeString('ja-JP', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })}`;
+      } else if (date >= oneWeekAgo) {
+        // 1週間以内の場合は曜日と時刻
+        const weekday = date.toLocaleDateString('ja-JP', { weekday: 'short' });
+        return `${weekday} ${date.toLocaleTimeString('ja-JP', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })}`;
       } else {
-        return date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+        // それより前は月日と時刻
+        return date.toLocaleDateString('ja-JP', { 
+          year: 'numeric',
+          month: 'numeric', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
       }
     } catch (error) {
       console.warn('⚠️ [SIDEBAR] Date formatting error:', timestamp, error);
       return '不明';
     }
   };
+
   return (
     <>
       <div 
@@ -209,7 +307,7 @@ export default function ChatSidebar({
                 <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8m-8 0V8a4 4 0 118 0v4m-8 0v4a4 4 0 108 0v-4" />
                 </svg>
-                <p className="text-sm">まだチャット履歴がありません</p>
+                <p className="text-sm">チャット履歴がありません</p>
                 <button
                   onClick={onNewChat}
                   className="mt-3 text-blue-500 hover:text-blue-600 text-sm font-medium"
@@ -230,6 +328,7 @@ export default function ChatSidebar({
                           ? 'bg-blue-50 border border-blue-200 cursor-pointer' 
                           : 'hover:bg-gray-50 cursor-pointer'
                       }
+                      ${deletingSessionId === chatSession.id ? 'opacity-50 pointer-events-none' : ''}
                       ${isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-95'}
                     `}
                     style={{ 
@@ -271,6 +370,10 @@ export default function ChatSidebar({
                             <p className="text-xs text-gray-500 mt-1">
                               {formatDate(chatSession.updatedAt)}
                             </p>
+                            {/* メッセージ数も表示 */}
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {chatSession.messages?.length || 0} メッセージ
+                            </p>
                           </>
                         )}
                       </div>
@@ -301,12 +404,24 @@ export default function ChatSidebar({
                         </button>
                         <button
                           onClick={(e) => handleDeleteSession(chatSession.id, e)}
-                          className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
-                          title="削除"
+                          className={`p-1 rounded transition-colors ${
+                            deletingSessionId === chatSession.id
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-gray-400 hover:text-red-500'
+                          }`}
+                          title={deletingSessionId === chatSession.id ? "削除中..." : "削除"}
+                          disabled={deletingSessionId === chatSession.id}
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
+                          {deletingSessionId === chatSession.id ? (
+                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          )}
                         </button>
                       </div>
                     )}

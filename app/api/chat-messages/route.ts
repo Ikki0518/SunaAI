@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseChatMessages, saveSupabaseChatMessage } from '@/app/lib/supabase';
+import { getSupabaseChatMessages, saveSupabaseChatMessage, deleteSupabaseChatMessages } from '@/app/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 
@@ -105,6 +105,42 @@ export async function POST(request: NextRequest) {
           hint: error instanceof Error && 'hint' in error ? (error as any).hint : undefined
         }
       })
+    }, { status: 500 });
+  }
+}
+
+// 🎯 修正2: チャットメッセージ削除
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    // ログインしていない場合はエラーを返す（削除はログイン必須）
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user_id = session.user.id;
+    const { sessionId } = await request.json();
+    
+    if (!sessionId) {
+      return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
+    }
+
+    // Supabaseからメッセージを削除（権限チェック付き）
+    await deleteSupabaseChatMessages(sessionId, user_id);
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('🔧 [CHAT-MESSAGES API] Failed to delete chat messages:', error);
+    console.error('🔧 [CHAT-MESSAGES API] Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    return NextResponse.json({ 
+      error: 'Failed to delete messages',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }

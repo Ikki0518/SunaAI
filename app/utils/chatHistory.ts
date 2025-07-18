@@ -480,22 +480,87 @@ export class ChatHistoryManager {
     }
   }
 
-  // チャットセッションを削除
-  static deleteChatSession(sessionId: string): void {
+  // 🔥 修正: データベースからも確実に削除するチャットセッション削除機能
+  static async deleteChatSession(sessionId: string, user_id?: string): Promise<void> {
     try {
-      if (typeof window === 'undefined') return;
+      console.log('🗑️ [DELETE] Starting comprehensive session deletion:', sessionId);
       
-      const sessions = this.getSortedSessions();
-      const filteredSessions = sessions.filter(s => s.id !== sessionId);
-      
-      localStorage.setItem(this.getLocalStorageKey(), JSON.stringify(filteredSessions));
-      
-      // 削除もブロードキャスト
-      window.dispatchEvent(new CustomEvent('chatHistoryUpdated', {
-        detail: { action: 'delete', sessionId, timestamp: Date.now() }
-      }));
+      // 1. Supabaseから削除（認証済みユーザーの場合）
+      if (user_id) {
+        console.log('🗑️ [DELETE] Deleting from Supabase for user:', user_id);
+        
+        try {
+          // セッションをSupabaseから削除
+          const sessionDeleteResponse = await fetch('/api/chat-sessions', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          if (!sessionDeleteResponse.ok) {
+            const errorData = await sessionDeleteResponse.json();
+            console.error('🗑️ [DELETE] Supabase session deletion failed:', errorData);
+            throw new Error(errorData.details || errorData.error || 'Session deletion failed');
+          }
+
+          // メッセージもSupabaseから削除
+          const messagesDeleteResponse = await fetch('/api/chat-messages', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          if (!messagesDeleteResponse.ok) {
+            const errorData = await messagesDeleteResponse.json();
+            console.warn('⚠️ [DELETE] Supabase messages deletion failed (continuing):', errorData);
+            // メッセージ削除失敗は警告のみ、処理を続行
+          }
+
+          console.log('✅ [DELETE] Successfully deleted from Supabase');
+        } catch (supabaseError) {
+          console.error('❌ [DELETE] Supabase deletion failed:', supabaseError);
+          throw supabaseError; // Supabaseエラーは上位に投げる
+        }
+      }
+
+      // 2. ローカルストレージから削除
+      if (typeof window !== 'undefined') {
+        console.log('🗑️ [DELETE] Deleting from local storage...');
+        
+        // 旧形式のローカルストレージから削除
+        const sessions = this.getSortedSessions();
+        const filteredSessions = sessions.filter(s => s.id !== sessionId);
+        localStorage.setItem(this.getLocalStorageKey(), JSON.stringify(filteredSessions));
+        
+        // キャッシュからも削除
+        const cacheKey = this.getLocalStorageKey() + '_cache';
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const cachedSessions = JSON.parse(cached);
+            const filteredCachedSessions = cachedSessions.filter((s: any) => s.id !== sessionId);
+            localStorage.setItem(cacheKey, JSON.stringify(filteredCachedSessions));
+            console.log('✅ [DELETE] Successfully deleted from cache');
+          } catch (cacheError) {
+            console.warn('⚠️ [DELETE] Cache cleanup failed:', cacheError);
+          }
+        }
+        
+        // 削除イベントをブロードキャスト
+        window.dispatchEvent(new CustomEvent('chatHistoryUpdated', {
+          detail: { action: 'delete', sessionId, timestamp: Date.now() }
+        }));
+        
+        console.log('✅ [DELETE] Successfully deleted from local storage');
+      }
+
+      console.log('🎉 [DELETE] Session deletion completed successfully:', sessionId);
     } catch (error) {
-      console.error('Failed to delete chat session:', error);
+      console.error('❌ [DELETE] Failed to delete chat session:', error);
       throw error;
     }
   }

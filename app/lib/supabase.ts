@@ -311,3 +311,81 @@ export async function updateSupabaseUserName(user_id: string, name: string) {
   if (error) throw error;
   return data;
 }
+
+// 🎯 修正2: Supabaseからチャットセッションを削除
+export async function deleteSupabaseChatSession(sessionId: string, userId: string) {
+  if (typeof window !== 'undefined') {
+    throw new Error('この関数はサーバーサイドでのみ利用可能です。');
+  }
+  
+  if (!supabaseAdmin || !isSupabaseConfigured) {
+    throw new Error('Supabase管理者クライアントが未設定です。');
+  }
+  
+  try {
+    // ユーザー権限チェック: 自分のセッションのみ削除可能
+    const { data: sessionData, error: sessionError } = await supabaseAdmin
+      .from('chat_sessions')
+      .select('user_id')
+      .eq('id', sessionId)
+      .single();
+    
+    if (sessionError) {
+      if (sessionError.code === 'PGRST116') {
+        throw new Error('削除対象のセッションが見つかりません');
+      }
+      throw sessionError;
+    }
+    
+    if (sessionData.user_id !== userId) {
+      throw new Error('他のユーザーのセッションは削除できません');
+    }
+    
+    // セッションを削除
+    const { error: deleteError } = await supabaseAdmin
+      .from('chat_sessions')
+      .delete()
+      .eq('id', sessionId)
+      .eq('user_id', userId); // 安全性のため再度ユーザーIDでフィルタ
+    
+    if (deleteError) {
+      console.error('🔧 [SUPABASE ERROR] Session delete failed:', deleteError);
+      throw deleteError;
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('🔧 [SUPABASE ERROR] Critical failure in deleteSupabaseChatSession:', error);
+    throw error;
+  }
+}
+
+// 🎯 修正2: Supabaseからチャットメッセージを削除
+export async function deleteSupabaseChatMessages(sessionId: string, userId: string) {
+  if (typeof window !== 'undefined') {
+    throw new Error('この関数はサーバーサイドでのみ利用可能です。');
+  }
+  
+  if (!supabaseAdmin || !isSupabaseConfigured) {
+    throw new Error('Supabase管理者クライアントが未設定です。');
+  }
+  
+  try {
+    // ユーザー権限チェック: 自分のメッセージのみ削除可能
+    const { error: deleteError } = await supabaseAdmin
+      .from('chat_messages')
+      .delete()
+      .eq('session_id', sessionId)
+      .eq('user_id', userId); // 安全性のためユーザーIDでフィルタ
+    
+    if (deleteError) {
+      console.error('🔧 [SUPABASE ERROR] Messages delete failed:', deleteError);
+      throw deleteError;
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('🔧 [SUPABASE ERROR] Critical failure in deleteSupabaseChatMessages:', error);
+    throw error;
+  }
+}
